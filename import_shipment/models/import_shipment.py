@@ -23,6 +23,7 @@ class ImportShipment(models.Model):
     
     product_id = fields.Many2one('product.product', string='Product', related='purchase_line_id.product_id', store=True, readonly=True)
     product_uom = fields.Many2one('uom.uom', string='Unit of Measure', related='purchase_line_id.product_uom', store=True, readonly=True)
+    price_unit = fields.Float(related='purchase_line_id.price_unit', string='Unit Price', store=True, readonly=True)
     
     ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True, readonly=True)
     imported_qty = fields.Float(string='Imported Qty', help="Quantity verified via Excel import or manual entry", copy=False)

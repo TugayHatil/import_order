@@ -8,6 +8,8 @@
             <tree create="false" delete="false" edit="false" decoration-warning="state == 'warning'" decoration-danger="state == 'failed'">
                 <field name="reference"/>
                 <field name="quantity"/>
+                <field name="excel_price"/>
+                <field name="odoo_price"/>
                 <field name="state" widget="badge" decoration-success="state == 'success'" decoration-danger="state == 'failed'" decoration-warning="state == 'warning'" decoration-info="state == 'pending'"/>
                 <field name="message"/>
             </tree>

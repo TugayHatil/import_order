@@ -34,10 +34,11 @@ class ImportShipmentExcelWizard(models.TransientModel):
         preview_vals = []
         for row_index in range(sheet.nrows):
             if row_index == 0: continue # Skip header
-            ref_val, qty_val, message, status = self._parse_excel_row(sheet, row_index)
+            ref_val, qty_val, price_val, message, status = self._parse_excel_row(sheet, row_index)
             preview_vals.append((0, 0, {
                 'reference': ref_val,
                 'quantity': qty_val,
+                'excel_price': price_val,
                 'state': status,
                 'message': message
             }))
@@ -51,12 +52,13 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     def _parse_excel_row(self, sheet, row_index):
         try:
-            # Assumes Column 0 is Reference, Column 1 is Quantity
+            # Assumes Column 0 is Reference, Column 1 is Quantity, Column 2 is Price
             ref = str(sheet.cell_value(row_index, 0)).strip()
             qty = float(sheet.cell_value(row_index, 1) or 0.0)
-            return ref, qty, '', 'pending'
+            price = float(sheet.cell_value(row_index, 2) or 0.0)
+            return ref, qty, price, '', 'pending'
         except Exception as e:
-            return '', 0.0, str(e), 'failed'
+            return '', 0.0, 0.0, str(e), 'failed'
 
     def action_validate(self):
         self.ensure_one()
@@ -79,22 +81,29 @@ class ImportShipmentExcelWizard(models.TransientModel):
             ])
             
             if target_lines:
-                # Check for quantity mismatch (Warning)
-                # We take the sum of ordered qty of matched lines to compare, or just the first one?
-                # Usually reference matches 1-to-1.
+                # Check for quantity and price mismatch (Warning)
                 total_ordered = sum(target_lines.mapped('ordered_qty'))
+                odoo_price = target_lines[0].price_unit # Assuming same price for same reference
                 
-                if abs(total_ordered - line.quantity) < 0.01:
-                    state = 'success'
-                    msg = _('Eşleşme bulundu.')
-                else:
+                msgs = []
+                state = 'success'
+                
+                if abs(total_ordered - line.quantity) > 0.01:
                     state = 'warning'
-                    msg = _('Miktar farkı var. Sipariş: %s, Excel: %s') % (total_ordered, line.quantity)
+                    msgs.append(_('Miktar farkı (Sipariş: %s, Excel: %s)') % (total_ordered, line.quantity))
+                
+                if abs(odoo_price - line.excel_price) > 0.01:
+                    state = 'warning'
+                    msgs.append(_('Fiyat farkı (Sipariş: %s, Excel: %s)') % (odoo_price, line.excel_price))
+
+                if not msgs:
+                    msgs.append(_('Eşleşme bulundu.'))
 
                 line.write({
                     'match_ids': [(6, 0, target_lines.ids)],
+                    'odoo_price': odoo_price,
                     'state': state,
-                    'message': msg
+                    'message': ' | '.join(msgs)
                 })
             else:
                 line.write({
@@ -156,6 +165,8 @@ class ImportShipmentExcelLine(models.TransientModel):
     wizard_id = fields.Many2one('import.shipment.excel.wizard', string='Wizard', ondelete='cascade')
     reference = fields.Char(string='Referans')
     quantity = fields.Float(string='Miktar')
+    excel_price = fields.Float(string='Excel Fiyat')
+    odoo_price = fields.Float(string='Sipariş Fiyat')
     match_ids = fields.Many2many('import.shipment', string='Matched Lines')
     
     state = fields.Selection([
