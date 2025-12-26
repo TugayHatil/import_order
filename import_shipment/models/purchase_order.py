@@ -24,6 +24,6 @@ class PurchaseOrder(models.Model):
                         'partner_id': order.partner_id.id,
                         'purchase_line_id': line.id,
                         'ordered_qty': line.product_qty,
-                        'date_planned': line.date_planned,
+                        'expected_date': line.date_planned.date() if line.date_planned else False,
                     })
         return res

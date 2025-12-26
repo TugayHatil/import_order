@@ -8,18 +8,22 @@
                 <header>
                     <button name="%(action_import_shipment_excel_wizard)d" string="Excel ile Aktar" type="action" class="oe_highlight"/>
                 </header>
-                <field name="name"/>
-                <field name="partner_id"/>
-                <field name="purchase_order_id"/>
-                <field name="date_planned"/>
-                <field name="product_id"/>
-                <field name="price_unit"/>
-                <field name="ordered_qty"/>
-                <field name="imported_qty"/>
-                <field name="received_qty"/>
-                <field name="open_qty"/>
-                <field name="shipment_ref"/>
-                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'"/>
+                <field name="name" optional="show"/>
+                <field name="partner_id" optional="show"/>
+                <field name="purchase_order_id" optional="show"/>
+                <field name="product_default_code" optional="show"/>
+                <field name="manufacturer_pref" optional="show"/>
+                <field name="expected_date" widget="date" optional="show"/>
+                <field name="product_id" optional="show"/>
+                <field name="price_unit" optional="show"/>
+                <field name="currency_id" optional="show"/>
+                <field name="ordered_qty" optional="show"/>
+                <field name="product_uom_id" string="UoM" optional="show"/>
+                <field name="imported_qty" optional="show"/>
+                <field name="received_qty" optional="show"/>
+                <field name="open_qty" optional="show"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'" optional="show"/>
+                <button name="action_open_related_pickings" type="object" icon="fa-truck" title="Related Pickings"/>
             </tree>
         </field>
     </record>
@@ -43,12 +47,13 @@
                             <field name="partner_id" readonly="1"/>
                             <field name="purchase_line_id" readonly="1"/>
                             <field name="purchase_order_id"/>
-                            <field name="shipment_ref"/>
-                            <field name="date_planned"/>
+                            <field name="expected_date" widget="date"/>
                         </group>
                         <group>
                             <field name="product_id"/>
-                            <field name="product_uom"/>
+                            <field name="product_default_code"/>
+                            <field name="manufacturer_pref"/>
+                            <field name="product_uom_id"/>
                             <field name="ordered_qty"/>
                             <field name="imported_qty"/>
                             <field name="received_qty"/>
@@ -70,7 +75,8 @@
                 <field name="partner_id"/>
                 <field name="purchase_order_id"/>
                 <field name="product_id"/>
-                <field name="shipment_ref"/>
+                <field name="product_default_code"/>
+                <field name="manufacturer_pref"/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Imported" name="imported" domain="[('state', '=', 'imported')]"/>
                 <filter string="Partially Imported" name="partially_imported" domain="[('state', '=', 'partially_imported')]"/>

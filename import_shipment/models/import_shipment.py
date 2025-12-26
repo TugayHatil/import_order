@@ -22,16 +22,21 @@ class ImportShipment(models.Model):
     purchase_order_id = fields.Many2one('purchase.order', related='purchase_line_id.order_id', string='Purchase Order', store=True, readonly=True)
     
     product_id = fields.Many2one('product.product', string='Product', related='purchase_line_id.product_id', store=True, readonly=True)
+    product_default_code = fields.Char(related='product_id.default_code', string='Product Code', store=True, readonly=True)
+    manufacturer_pref = fields.Char(related='product_id.manufacturer_pref', string='Manufacturer Pref', store=True, readonly=True)
+    
     product_uom = fields.Many2one('uom.uom', string='Unit of Measure', related='purchase_line_id.product_uom', store=True, readonly=True)
+    product_uom_id = fields.Many2one('uom.uom', related='product_id.uom_id', string='Unit of Measure', store=True, readonly=True)
+    
     price_unit = fields.Float(related='purchase_line_id.price_unit', string='Unit Price', store=True, readonly=True)
+    currency_id = fields.Many2one('res.currency', related='purchase_order_id.currency_id', string='Currency', store=True, readonly=True)
     
     ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True, readonly=True)
     imported_qty = fields.Float(string='Imported Qty', help="Cumulative quantity imported via Excel", copy=False, default=0.0)
     received_qty = fields.Float(string='Received Qty', compute='_compute_received_qty', store=True, copy=False)
     open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=True, help="Ordered - Imported")
     
-    date_planned = fields.Datetime(string='Expected Date', help="Initially from PO line, can be changed independently.")
-    shipment_ref = fields.Char(string='Supplier/Excel Ref')
+    expected_date = fields.Date(string='Expected Date', help="Initially from PO line, can be changed independently.")
     picking_id = fields.Many2one('stock.picking', string='Latest Picking', copy=False)
     
     active = fields.Boolean(default=True)
@@ -139,3 +144,17 @@ class ImportShipment(models.Model):
                 pickings |= picking
 
         return pickings
+
+    def action_open_related_pickings(self):
+        self.ensure_one()
+        pickings = self.env['stock.picking'].search([
+            ('move_ids.import_shipment_id', '=', self.id)
+        ])
+        return {
+            'name': _('Related Pickings'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'stock.picking',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', pickings.ids)],
+            'target': 'current',
+        }
