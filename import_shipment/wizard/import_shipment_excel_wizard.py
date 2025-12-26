@@ -1,5 +1,5 @@
+import logging
 import base64
-import xlrd
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
@@ -23,6 +23,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
     # 0=Ref(PO-Pref), 1=Quantity, 2=Price, 3=Date
     
     def _parse_excel_row(self, sheet, row_index):
+        import xlrd
         try:
             ref = str(sheet.cell_value(row_index, 0)).strip()
             qty = float(sheet.cell_value(row_index, 1) or 0.0)
@@ -44,6 +45,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
             return '', 0.0, 0.0, False, str(e), 'failed'
 
     def action_preview(self):
+        import xlrd
         self.ensure_one()
         if not self.import_file:
             raise UserError(_("Lütfen bir Excel dosyası yükleyin."))
