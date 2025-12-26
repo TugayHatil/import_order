@@ -5,6 +5,10 @@
         <field name="model">import.shipment</field>
         <field name="arch" type="xml">
             <tree string="Import Shipments" decoration-info="state == 'draft'" decoration-success="state == 'done'">
+                <header>
+                    <button name="%(action_import_shipment_excel_wizard)d" string="Excel ile Aktar" type="action" class="oe_highlight"/>
+                </header>
+                <field name="reference"/>
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="purchase_order_id"/>
@@ -39,6 +43,7 @@
                             <field name="purchase_line_id" readonly="1"/>
                             <field name="purchase_order_id"/>
                             <field name="shipment_ref"/>
+                            <field name="reference"/>
                         </group>
                         <group>
                             <field name="product_id"/>

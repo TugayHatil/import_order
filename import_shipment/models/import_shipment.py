@@ -1,5 +1,8 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class ImportShipment(models.Model):
     _name = 'import.shipment'
@@ -30,6 +33,22 @@ class ImportShipment(models.Model):
     picking_id = fields.Many2one('stock.picking', string='Incoming Picking', copy=False)
     
     active = fields.Boolean(default=True)
+    
+    reference = fields.Char(string='Reference', compute='_compute_reference', store=True)
+
+    @api.depends('purchase_order_id.name', 'product_id.manufacturer_pref')
+    def _compute_reference(self):
+        for record in self:
+            ref_parts = []
+            if record.purchase_order_id.name:
+                ref_parts.append(record.purchase_order_id.name)
+            if record.product_id.manufacturer_pref:
+                ref_parts.append(record.product_id.manufacturer_pref)
+            
+            if len(ref_parts) == 2:
+                record.reference = "-".join(ref_parts)
+            else:
+                record.reference = record.shipment_ref or ''
 
     @api.model
     def create(self, vals):

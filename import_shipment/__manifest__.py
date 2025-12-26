@@ -12,12 +12,13 @@
     """,
     'category': 'Inventory/Purchase',
     'author': 'Antigravity',
-    'depends': ['purchase', 'stock', 'mrp', 'purchase_stock'],
+    'depends': ['purchase', 'stock', 'mrp', 'purchase_stock', 'product'],
     'data': [
         'security/ir.model.access.csv',
         'views/import_shipment_views.xml',
         'views/res_partner_views.xml',
-        'wizard/import_shipment_excel_views.xml', # To be implemented
+        'models/product_product_views.xml',
+        'wizard/import_shipment_excel_wizard_views.xml',
     ],
     'installable': True,
     'application': True,

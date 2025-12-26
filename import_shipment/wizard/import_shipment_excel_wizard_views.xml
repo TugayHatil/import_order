@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_import_shipment_excel_wizard_form" model="ir.ui.view">
+        <field name="name">import.shipment.excel.wizard.form</field>
+        <field name="model">import.shipment.excel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Excel ile Aktar">
+                <header>
+                    <button name="action_preview" string="Önizle" type="object" class="oe_highlight" states="draft"/>
+                    <button name="action_validate" string="Doğrula" type="object" class="oe_highlight" states="draft"/>
+                    <!-- 'validate' state logic: preview -> draft with lines -> validate -> validated -> confirm -->
+                    <!-- In code: action_preview returns draft. action_validate returns validated. -->
+                    <button name="action_validate" string="Tekrar Doğrula" type="object" states="validated"/> 
+                    <button name="action_confirm" string="Aktarımı Başlat" type="object" class="oe_highlight" states="validated"/>
+                    <button name="action_reset" string="Sıfırla" type="object" states="validated"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="import_file" filename="file_name"/>
+                        <field name="file_name" invisible="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Satırlar">
+                            <field name="line_ids">
+                                <tree decoration-danger="state=='failed'" decoration-success="state=='success'">
+                                    <field name="reference"/>
+                                    <field name="quantity"/>
+                                    <field name="state"/>
+                                    <field name="message"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_import_shipment_excel_wizard" model="ir.actions.act_window">
+        <field name="name">Excel ile Aktar</field>
+        <field name="res_model">import.shipment.excel.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
