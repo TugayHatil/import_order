@@ -4,14 +4,14 @@
         <field name="name">import.shipment.tree</field>
         <field name="model">import.shipment</field>
         <field name="arch" type="xml">
-            <tree string="Import Shipments" decoration-info="state == 'draft'" decoration-success="state == 'done'">
+            <tree string="Import Shipments" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'">
                 <header>
                     <button name="%(action_import_shipment_excel_wizard)d" string="Excel ile Aktar" type="action" class="oe_highlight"/>
                 </header>
-                <field name="reference"/>
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="purchase_order_id"/>
+                <field name="date_planned"/>
                 <field name="product_id"/>
                 <field name="price_unit"/>
                 <field name="ordered_qty"/>
@@ -19,7 +19,7 @@
                 <field name="received_qty"/>
                 <field name="open_qty"/>
                 <field name="shipment_ref"/>
-                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'partially_received'" decoration-success="state == 'done'"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'"/>
             </tree>
         </field>
     </record>
@@ -31,8 +31,8 @@
             <form string="Import Shipment">
                 <header>
                     <button name="create_incoming_picking" string="Create Incoming Picking" type="object" class="oe_highlight" 
-                            attrs="{'invisible': [('state', 'not in', ['imported', 'partially_received'])]}"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,imported,partially_received,done"/>
+                            attrs="{'invisible': [('state', 'not in', ['draft', 'partially_imported', 'imported'])]}"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,partially_imported,imported,done"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -44,7 +44,7 @@
                             <field name="purchase_line_id" readonly="1"/>
                             <field name="purchase_order_id"/>
                             <field name="shipment_ref"/>
-                            <field name="reference"/>
+                            <field name="date_planned"/>
                         </group>
                         <group>
                             <field name="product_id"/>

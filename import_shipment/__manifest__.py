@@ -18,6 +18,7 @@
         'wizard/import_shipment_excel_wizard_views.xml',
         'views/import_shipment_views.xml',
         'views/res_partner_views.xml',
+        'views/stock_picking_type_views.xml',
         'models/product_product_views.xml',
     ],
     'installable': True,

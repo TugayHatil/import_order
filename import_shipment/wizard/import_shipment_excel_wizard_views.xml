@@ -10,6 +10,7 @@
                 <field name="quantity"/>
                 <field name="excel_price"/>
                 <field name="odoo_price"/>
+                <field name="date"/>
                 <field name="state" widget="badge" decoration-success="state == 'success'" decoration-danger="state == 'failed'" decoration-warning="state == 'warning'" decoration-info="state == 'pending'"/>
                 <field name="message"/>
             </tree>
@@ -27,6 +28,13 @@
                 <!-- Step 1: Initial Upload Instructions -->
                 <div class="alert alert-info" attrs="{'invisible': [('line_ids', '!=', [])]}">
                     <p>Lütfen Excel dosyasını seçin ve <strong>"ÖNİZLEME OLUŞTUR"</strong> butonuna basın.</p>
+                    <p>Excel Formatı:</p>
+                    <ul>
+                      <li>A Sütunu: Referans (PO-Prefix)</li>
+                      <li>B Sütunu: Miktar</li>
+                      <li>C Sütunu: Birim Fiyat</li>
+                      <li>D Sütunu: Tarih</li>
+                    </ul>
                 </div>
 
                 <!-- Step 2: Information after Preview -->
