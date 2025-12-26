@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_x_import_order,x_import_order,model_x_import_order,base.group_user,1,1,1,1
+access_x_import_order_line,x_import_order_line,model_x_import_order_line,base.group_user,1,1,1,1
+access_order_line_excel_import_wizard,order.line.excel.import.wizard,model_order_line_excel_import_wizard,base.group_user,1,1,1,1
+access_order_line_excel_import_line,order.line.excel.import.line,model_order_line_excel_import_line,base.group_user,1,1,1,1

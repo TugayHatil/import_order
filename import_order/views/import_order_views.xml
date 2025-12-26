@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_x_import_order_tree" model="ir.ui.view">
+        <field name="name">x_import_order.tree</field>
+        <field name="model">x_import_order</field>
+        <field name="arch" type="xml">
+            <tree string="Import Orders">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="date"/>
+                <field name="currency_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_x_import_order_form" model="ir.ui.view">
+        <field name="name">x_import_order.form</field>
+        <field name="model">x_import_order</field>
+        <field name="arch" type="xml">
+            <form string="Import Order">
+                <header>
+                    <button name="action_confirm" string="Confirm" type="object" class="oe_highlight" states="draft"/>
+                    <button name="action_cancel" string="Cancel" type="object" states="draft"/>
+                    <button name="action_draft" string="Set to Draft" type="object" states="cancel"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,done,cancel"/>
+                </header>
+                <sheet>
+                    <field name="state" invisible="1"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group name="left">
+                            <field name="partner_id" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                            <field name="date" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                            <field name="x_date_expected" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                        </group>
+                        <group name="right">
+                            <field name="currency_id" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                            <field name="x_picking_type_id" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Order Lines" name="order_lines">
+                            <!-- Draft State: Using the primary field to allow all operations -->
+                            <field name="line_ids" nolabel="1" attrs="{'invisible': [('state', '!=', 'draft')]}">
+                                <tree editable="bottom">
+                                    <field name="import_order_id" optional="hide"/>
+                                    <field name="product_id"/>
+                                    <field name="x_teknik_referans" optional="hide"/>
+                                    <field name="quantity"/>
+                                    <field name="x_qty_incoming"/>
+                                    <field name="product_uom_id"/>
+                                    <field name="price_unit"/>
+                                    <field name="price_subtotal"/>
+                                    <field name="state" optional="hide"/>
+                                    <field name="currency_id" invisible="1"/>
+                                </tree>
+                            </field>
+                            <!-- Done/Cancel State: Using the proxy field to lock Add/Delete while keeping Incoming editable -->
+                            <field name="x_line_ids_readonly" nolabel="1" attrs="{'invisible': [('state', '=', 'draft')]}">
+                                <tree editable="bottom" create="0" delete="0">
+                                    <field name="import_order_id" optional="hide"/>
+                                    <field name="product_id" readonly="1"/>
+                                    <field name="x_teknik_referans" optional="hide"/>
+                                    <field name="quantity" readonly="1"/>
+                                    <field name="x_qty_incoming"/>
+                                    <field name="product_uom_id"/>
+                                    <field name="price_unit" readonly="1"/>
+                                    <field name="price_subtotal"/>
+                                    <field name="state" optional="hide"/>
+                                    <field name="currency_id" invisible="1"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                    <group class="oe_subtotal_footer oe_right">
+                        <field name="amount_total" class="oe_subtotal_footer_separator"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_x_import_order_line_tree" model="ir.ui.view">
+        <field name="name">x_import_order_line.tree</field>
+        <field name="model">x_import_order_line</field>
+        <field name="arch" type="xml">
+            <tree string="Order Lines" create="false" edit="true">
+                <header>
+                    <button name="%(import_order.action_order_line_excel_import_wizard)d" string="Excel ile Aktar" type="action" class="btn-primary"/>
+                </header>
+                <field name="import_order_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="x_teknik_referans" optional="hide"/>
+                <field name="quantity"/>
+                <field name="x_qty_incoming"/>
+                <field name="product_uom_id"/>
+                <field name="price_unit"/>
+                <field name="price_subtotal"/>
+                <field name="state" widget="badge" optional="hide" decoration-info="state == 'draft'" decoration-success="state == 'done'" decoration-danger="state == 'cancel'"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_x_import_order" model="ir.actions.act_window">
+        <field name="name">Import Orders</field>
+        <field name="res_model">x_import_order</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Import Order!
+            </p>
+        </field>
+    </record>
+
+    <record id="action_x_import_order_line" model="ir.actions.act_window">
+        <field name="name">Order Lines</field>
+        <field name="res_model">x_import_order_line</field>
+        <field name="view_mode">tree</field>
+    </record>
+
+    <menuitem id="menu_import_order_root" 
+              name="Import Orders" 
+              web_icon="purchase,static/description/icon.png"
+              sequence="10"/>
+
+    <menuitem id="menu_import_order_sub" 
+              name="Import Orders" 
+              parent="menu_import_order_root" 
+              sequence="1"/>
+
+    <menuitem id="menu_import_order_list" 
+              name="Import Orders" 
+              parent="menu_import_order_sub" 
+              action="action_x_import_order" 
+              sequence="1"/>
+
+    <menuitem id="menu_import_order_line_list" 
+              name="Order Lines" 
+              parent="menu_import_order_sub" 
+              action="action_x_import_order_line" 
+              sequence="2"/>
+</odoo>
