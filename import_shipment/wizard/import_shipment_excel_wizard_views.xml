@@ -1,38 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- 1. Preview List Tree View (Inside Form) -->
+    <record id="view_import_shipment_excel_line_tree" model="ir.ui.view">
+        <field name="name">import.shipment.excel.line.tree</field>
+        <field name="model">import.shipment.excel.line</field>
+        <field name="arch" type="xml">
+            <tree create="false" delete="false" edit="false" decoration-warning="state == 'failed'" decoration-danger="state == 'failed'">
+                <field name="reference"/>
+                <field name="quantity"/>
+                <field name="state" widget="badge" decoration-success="state == 'success'" decoration-danger="state == 'failed'" decoration-info="state == 'pending'"/>
+                <field name="message"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- 2. Wizard Form View (Pop-up Structure) -->
     <record id="view_import_shipment_excel_wizard_form" model="ir.ui.view">
         <field name="name">import.shipment.excel.wizard.form</field>
         <field name="model">import.shipment.excel.wizard</field>
         <field name="arch" type="xml">
             <form string="Excel ile Aktar">
-                <header>
-                    <button name="action_preview" string="Önizle" type="object" class="oe_highlight" states="draft"/>
-                    <button name="action_validate" string="Doğrula" type="object" class="oe_highlight" states="draft"/>
-                    <!-- 'validate' state logic: preview -> draft with lines -> validate -> validated -> confirm -->
-                    <!-- In code: action_preview returns draft. action_validate returns validated. -->
-                    <button name="action_validate" string="Tekrar Doğrula" type="object" states="validated"/> 
-                    <button name="action_confirm" string="Aktarımı Başlat" type="object" class="oe_highlight" states="validated"/>
-                    <button name="action_reset" string="Sıfırla" type="object" states="validated"/>
-                    <field name="state" widget="statusbar"/>
-                </header>
-                <sheet>
-                    <group>
-                        <field name="import_file" filename="file_name"/>
-                        <field name="file_name" invisible="1"/>
-                    </group>
-                    <notebook>
-                        <page string="Satırlar">
-                            <field name="line_ids">
-                                <tree decoration-danger="state=='failed'" decoration-success="state=='success'">
-                                    <field name="reference"/>
-                                    <field name="quantity"/>
-                                    <field name="state"/>
-                                    <field name="message"/>
-                                </tree>
-                            </field>
-                        </page>
-                    </notebook>
-                </sheet>
+                <field name="state" invisible="1"/>
+                
+                <!-- Step 1: Initial Upload Instructions -->
+                <div class="alert alert-info" attrs="{'invisible': [('line_ids', '!=', [])]}">
+                    <p>Lütfen Excel dosyasını seçin ve <strong>"ÖNİZLEME OLUŞTUR"</strong> butonuna basın.</p>
+                </div>
+
+                <!-- Step 2: Information after Preview -->
+                <div class="alert alert-info" attrs="{'invisible': ['|', ('line_ids', '=', []), ('state', '!=', 'draft')]}">
+                    <p>Excel içeriği aşağıdadır. Lütfen <strong>"AKTARIMI BAŞLAT"</strong> butonuna basarak eşleşmeleri kontrol edin.</p>
+                </div>
+
+                <!-- Step 3: Confirmation -->
+                <div class="alert alert-success" attrs="{'invisible': [('state', '!=', 'validated')]}">
+                    <p>Eşleşmeler kontrol edildi. Lütfen <strong>"ONAYLA"</strong> butonuna basarak işlemi tamamlayın.</p>
+                </div>
+
+                <group attrs="{'invisible': [('line_ids', '!=', [])]}">
+                    <field name="import_file" filename="file_name" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                    <field name="file_name" invisible="1"/>
+                </group>
+
+                <!-- Preview List (Visible after Preview) -->
+                <div attrs="{'invisible': [('line_ids', '=', [])]}">
+                    <field name="line_ids" mode="tree" readonly="1" options="{'no_open': True}"/>
+                </div>
+
+                <footer>
+                    <!-- Visible ONLY at start -->
+                    <button name="action_preview" string="ÖNİZLEME OLUŞTUR" type="object" class="btn-primary" 
+                            attrs="{'invisible': [('line_ids', '!=', [])]}"/>
+                    
+                    <!-- Visible after Preview, until Validation -->
+                    <button name="action_validate" string="AKTARIMI BAŞLAT" type="object" class="btn-primary" 
+                            attrs="{'invisible': ['|', ('state', '!=', 'draft'), ('line_ids', '=', [])]}"/>
+                    
+                    <!-- Visible after Validation -->
+                    <button name="action_confirm" string="ONAYLA" type="object" class="btn-primary" 
+                            attrs="{'invisible': [('state', '!=', 'validated')]}"/>
+                    
+                    <!-- Control Buttons -->
+                    <button name="action_reset" string="VAZGEÇ / DOSYA DEĞİŞTİR" type="object" class="btn-secondary"
+                            attrs="{'invisible': [('line_ids', '=', [])]}"/>
+                    <button string="Kapat" class="btn-secondary" special="cancel"/>
+                </footer>
             </form>
         </field>
     </record>
