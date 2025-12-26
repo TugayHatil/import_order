@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_import_shipment_user,import.shipment.user,model_import_shipment,purchase.group_purchase_user,1,1,1,1
+access_import_shipment_manager,import.shipment.manager,model_import_shipment,purchase.group_purchase_manager,1,1,1,1
