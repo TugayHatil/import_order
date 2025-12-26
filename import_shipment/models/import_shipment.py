@@ -74,10 +74,10 @@ class ImportShipment(models.Model):
             ])
             record.received_qty = sum(moves.mapped('quantity_done'))
 
-    @api.depends('ordered_qty', 'received_qty')
+    @api.depends('ordered_qty', 'imported_qty')
     def _compute_open_qty(self):
         for record in self:
-            record.open_qty = max(0, record.ordered_qty - record.received_qty)
+            record.open_qty = max(0, record.ordered_qty - record.imported_qty)
 
     def create_incoming_picking(self):
         """
