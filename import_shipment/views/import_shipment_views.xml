@@ -73,7 +73,7 @@
                 <field name="shipment_ref"/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Imported" name="imported" domain="[('state', '=', 'imported')]"/>
-                <filter string="Partially Received" name="partially_received" domain="[('state', '=', 'partially_received')]"/>
+                <filter string="Partially Imported" name="partially_imported" domain="[('state', '=', 'partially_imported')]"/>
                 <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
                 <group expand="0" string="Group By">
                     <filter string="Vendor" name="group_by_partner" domain="[]" context="{'group_by': 'partner_id'}"/>
