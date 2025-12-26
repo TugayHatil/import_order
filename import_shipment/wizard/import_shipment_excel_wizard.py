@@ -17,6 +17,8 @@ class ImportShipmentExcelWizard(models.TransientModel):
         ('done', 'Tamamlandı')
     ], string='Status', default='draft')
 
+    picking_ids = fields.Many2many('stock.picking', string='Created Pickings')
+
     def action_preview(self):
         self.ensure_one()
         if not self.import_file:
@@ -77,10 +79,22 @@ class ImportShipmentExcelWizard(models.TransientModel):
             ])
             
             if target_lines:
+                # Check for quantity mismatch (Warning)
+                # We take the sum of ordered qty of matched lines to compare, or just the first one?
+                # Usually reference matches 1-to-1.
+                total_ordered = sum(target_lines.mapped('ordered_qty'))
+                
+                if abs(total_ordered - line.quantity) < 0.01:
+                    state = 'success'
+                    msg = _('Eşleşme bulundu.')
+                else:
+                    state = 'warning'
+                    msg = _('Miktar farkı var. Sipariş: %s, Excel: %s') % (total_ordered, line.quantity)
+
                 line.write({
                     'match_ids': [(6, 0, target_lines.ids)],
-                    'state': 'success',
-                    'message': _('Eşleşme bulundu: %s kayıt') % len(target_lines)
+                    'state': state,
+                    'message': msg
                 })
             else:
                 line.write({
@@ -94,28 +108,31 @@ class ImportShipmentExcelWizard(models.TransientModel):
     def action_confirm(self):
         self.ensure_one()
         
-        valid_lines = self.line_ids.filtered(lambda l: l.state == 'success')
+        valid_lines = self.line_ids.filtered(lambda l: l.state in ['success', 'warning'])
         if not valid_lines:
             raise UserError(_("Aktarılacak geçerli satır yok."))
 
+        shipments_to_process = self.env['import.shipment']
+
         for line in valid_lines:
             for shipment_line in line.match_ids:
-                # Update imported_qty
-                # If multiple matches, do we distribute? Or set same?
-                # Usually 1-to-1 is expected. If 1-to-many, maybe splitting?
-                # For now, simplest logic: Set imported_qty on all matched lines. 
-                # Be careful if multiple lines share reference. 
-                # If they share reference (Same PO, Same Product), they are duplicates?
-                # "PO00030-PA". If multiple lines have same product in same PO, reference is same.
-                # Logic: We might need to handle this.
-                # Assuming unique product per PO for now based on reference construction.
-                
                 shipment_line.imported_qty = line.quantity
                 if shipment_line.state == 'draft':
                     shipment_line.state = 'imported'
+                shipments_to_process |= shipment_line
 
         self.write({'state': 'done'})
-        return {'type': 'ir.actions.act_window_close'} # Or reload
+        
+        # Create Incoming Picking
+        if shipments_to_process:
+            # create_incoming_picking returns an action dictionary
+            action = shipments_to_process.create_incoming_picking()
+            
+            # If multiple pickings created, we might want to show them
+            # The standard method returns an action for the created pickings.
+            return action
+            
+        return {'type': 'ir.actions.act_window_close'}
 
     def action_reset(self):
         self.write({'state': 'draft', 'line_ids': [(5, 0, 0)]})
@@ -144,6 +161,7 @@ class ImportShipmentExcelLine(models.TransientModel):
     state = fields.Selection([
         ('pending', 'Beklemede'),
         ('success', 'Başarılı'),
+        ('warning', 'Kontrol'),
         ('failed', 'Başarısız')
     ], string='Durum', default='pending')
     message = fields.Char(string='Mesaj')
