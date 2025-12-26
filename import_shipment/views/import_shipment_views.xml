@@ -4,24 +4,24 @@
         <field name="name">import.shipment.tree</field>
         <field name="model">import.shipment</field>
         <field name="arch" type="xml">
-            <tree string="Import Shipments" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'">
+            <tree string="Import Shipments" editable="bottom" multi_edit="1" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'">
                 <header>
                     <button name="%(action_import_shipment_excel_wizard)d" string="Excel ile Aktar" type="action" class="oe_highlight"/>
                 </header>
-                <field name="name" optional="show"/>
-                <field name="partner_id" optional="show"/>
-                <field name="purchase_order_id" optional="show"/>
-                <field name="product_default_code" optional="show"/>
-                <field name="manufacturer_pref" optional="show"/>
+                <field name="name" readonly="1" optional="show"/>
+                <field name="partner_id" readonly="1" optional="show"/>
+                <field name="purchase_order_id" readonly="1" optional="show"/>
+                <field name="product_default_code" optional="hide" readonly="1"/>
+                <field name="manufacturer_pref" optional="hide" readonly="1"/>
                 <field name="expected_date" widget="date" optional="show"/>
-                <field name="product_id" optional="show"/>
-                <field name="price_unit" optional="show"/>
-                <field name="currency_id" optional="show"/>
-                <field name="ordered_qty" optional="show"/>
-                <field name="product_uom_id" string="UoM" optional="show"/>
+                <field name="product_id" readonly="1" optional="show"/>
+                <field name="price_unit" readonly="1" optional="show"/>
+                <field name="currency_id" readonly="1" optional="show"/>
+                <field name="ordered_qty" readonly="1" optional="show"/>
                 <field name="imported_qty" optional="show"/>
-                <field name="received_qty" optional="show"/>
-                <field name="open_qty" optional="show"/>
+                <field name="received_qty" readonly="1" optional="show"/>
+                <field name="open_qty" readonly="1" optional="show"/>
+                <field name="product_uom_id" string="UoM" readonly="1" optional="show"/>
                 <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'" optional="show"/>
                 <button name="action_open_related_pickings" type="object" icon="fa-truck" title="Related Pickings"/>
             </tree>
@@ -93,7 +93,7 @@
     <record id="action_import_shipment" model="ir.actions.act_window">
         <field name="name">Import Shipments</field>
         <field name="res_model">import.shipment</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">tree</field>
         <field name="search_view_id" ref="view_import_shipment_search"/>
         <field name="context">{'search_default_group_by_partner': 1}</field>
     </record>
