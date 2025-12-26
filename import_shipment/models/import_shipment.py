@@ -27,7 +27,7 @@ class ImportShipment(models.Model):
     ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True, readonly=True)
     imported_qty = fields.Float(string='Imported Qty', help="Quantity verified via Excel import or manual entry", copy=False)
     received_qty = fields.Float(string='Received Qty', compute='_compute_received_qty', store=True, copy=False)
-    open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=True, help="Ordered - Received (used for MRP)")
+    open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=False, help="Ordered - Imported")
     
     shipment_ref = fields.Char(string='Supplier/Excel Ref')
     picking_id = fields.Many2one('stock.picking', string='Incoming Picking', copy=False)
