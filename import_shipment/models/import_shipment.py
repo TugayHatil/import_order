@@ -182,5 +182,8 @@ class ImportShipment(models.Model):
             'res_model': 'import.shipment.delete.wizard',
             'view_mode': 'form',
             'target': 'new',
-            'context': {'active_ids': self.ids}
+            'context': {
+                'shipment_ids_to_delete': self.ids,
+                'confirm_delete': True, # Ensure we don't recursive loop if someone calls it from here bypassing wizard
+            }
         }
