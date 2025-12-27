@@ -54,7 +54,7 @@
 
                 <!-- Preview List (Visible after Preview) -->
                 <div attrs="{'invisible': [('line_ids', '=', [])]}">
-                    <group attrs="{'invisible': [('state', 'not in', ['draft', 'validated'])]}">
+                    <group attrs="{'invisible': [('state', '!=', 'validated')]}">
                         <field name="line_filter" widget="radio" options="{'horizontal': true}"/>
                     </group>
                     <field name="display_line_ids" mode="tree" readonly="1" options="{'no_open': True}"/>
