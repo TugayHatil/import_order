@@ -9,6 +9,10 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     import_file = fields.Binary(string='Excel File', required=True)
     file_name = fields.Char(string='File Name')
+    transfer_method = fields.Selection([
+        ('order', 'Siparişe İstinaden Aktarım (Order-Based)'),
+        ('fifo', 'FIFO (Karışık Gönderim)')
+    ], string='Aktarım Yöntemi', required=True)
     line_ids = fields.One2many('import.shipment.excel.line', 'wizard_id', string='Preview Lines')
     
     state = fields.Selection([
@@ -144,10 +148,15 @@ class ImportShipmentExcelWizard(models.TransientModel):
             total_excel_qty = sum(lines.mapped('quantity'))
             excel_price = lines[0].excel_price
             
-            target_lines = self.env['import.shipment'].search([
-                ('name', '=', ref),
-                ('state', 'not in', ['done', 'imported', 'cancel']) 
-            ], order='expected_date asc, id asc')
+            # Determine search domain based on transfer method
+            domain = [('state', 'not in', ['done', 'imported', 'cancel'])]
+            if self.transfer_method == 'order':
+                domain.append(('name', '=', ref))
+            else:
+                # FIFO matches product manufacturer prefix
+                domain.append(('manufacturer_pref', '=', ref))
+
+            target_lines = self.env['import.shipment'].search(domain, order='expected_date asc, id asc')
             
             if target_lines:
                 total_ordered = sum(target_lines.mapped('ordered_qty'))
