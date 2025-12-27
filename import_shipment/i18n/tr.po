@@ -188,6 +188,21 @@ msgid "Import Shipment Excel Wizard"
 msgstr "İthalat Sevkiyat Excel Sihirbazı"
 
 #. module: import_shipment
+#: field:import.shipment.excel.wizard,line_filter:0
+msgid "Durum Filtresi"
+msgstr "Durum Filtresi"
+
+#. module: import_shipment
+#: selection:import.shipment.excel.wizard,line_filter:0
+msgid "Tümü"
+msgstr "Tümü"
+
+#. module: import_shipment
+#: field:import.shipment.excel.wizard,display_line_ids:0
+msgid "Görüntülenen Satırlar"
+msgstr "Görüntülenen Satırlar"
+
+#. module: import_shipment
 #: field:import.shipment.excel.wizard,import_file:0
 msgid "Excel File"
 msgstr "Excel Dosyası"

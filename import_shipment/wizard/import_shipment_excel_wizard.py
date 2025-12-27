@@ -19,6 +19,24 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     picking_ids = fields.Many2many('stock.picking', string='Created Pickings')
 
+    line_filter = fields.Selection([
+        ('all', 'Tümü'),
+        ('pending', 'Beklemede'),
+        ('success', 'Başarılı'),
+        ('warning', 'Kontrol'),
+        ('failed', 'Başarısız')
+    ], string='Durum Filtresi', default='all')
+
+    display_line_ids = fields.Many2many('import.shipment.excel.line', compute='_compute_display_line_ids', string='Görüntülenen Satırlar')
+
+    @api.depends('line_ids', 'line_filter', 'line_ids.state')
+    def _compute_display_line_ids(self):
+        for wizard in self:
+            if not wizard.line_filter or wizard.line_filter == 'all':
+                wizard.display_line_ids = wizard.line_ids
+            else:
+                wizard.display_line_ids = wizard.line_ids.filtered(lambda l: l.state == wizard.line_filter)
+
     # Column mapping (0-based): 
     # 0=Ref(PO-Pref), 1=Quantity, 2=Price, 3=Date
     
