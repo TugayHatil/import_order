@@ -11,11 +11,11 @@ class ImportShipment(models.Model):
 
     name = fields.Char(string='Name', compute='_compute_name', store=True, readonly=True)
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('waiting', 'Waiting'),
         ('partially_imported', 'Partially Imported'),
         ('imported', 'Imported'),
         ('done', 'Done'),
-    ], string='Status', default='draft', compute='_compute_state', store=True, tracking=True)
+    ], string='Status', default='waiting', compute='_compute_state', store=True, tracking=True)
 
     partner_id = fields.Many2one('res.partner', string='Vendor', required=True)
     purchase_line_id = fields.Many2one('purchase.order.line', string='Purchase Order Line', required=True, ondelete='cascade')
@@ -38,6 +38,7 @@ class ImportShipment(models.Model):
     
     expected_date = fields.Date(string='Expected Date', help="Initially from PO line, can be changed independently.")
     picking_id = fields.Many2one('stock.picking', string='Latest Picking', copy=False)
+    picking_count = fields.Integer(compute='_compute_picking_count', string='Picking Count')
     
     active = fields.Boolean(default=True)
 
@@ -56,7 +57,14 @@ class ImportShipment(models.Model):
             elif record.imported_qty > 0:
                 record.state = 'partially_imported'
             else:
-                record.state = 'draft'
+                record.state = 'waiting'
+
+    def _compute_picking_count(self):
+        for record in self:
+            count = self.env['stock.picking'].search_count([
+                ('move_ids.import_shipment_id', '=', record.id)
+            ])
+            record.picking_count = count
 
     @api.depends('purchase_line_id.move_ids.state', 'purchase_line_id.move_ids.quantity_done')
     def _compute_received_qty(self):

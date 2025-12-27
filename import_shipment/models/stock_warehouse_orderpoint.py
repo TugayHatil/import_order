@@ -55,7 +55,7 @@ class StockWarehouseOrderpoint(models.Model):
             
             domain = [
                 ('product_id', '=', orderpoint.product_id.id),
-                ('state', 'in', ['draft', 'imported', 'partially_imported']),
+                ('state', 'in', ['waiting', 'imported', 'partially_imported']),
                 # We need to match location.
                 # Import shipments (via PO) usually go to Picking Type -> Default Dest Location.
                 # verifying if it matches orderpoint.location_id is complex but necessary for multi-warehouse.

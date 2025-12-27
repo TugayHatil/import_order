@@ -81,7 +81,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
         for line in self.line_ids:
             target_lines = self.env['import.shipment'].search([
                 ('name', '=', line.reference),
-                ('state', '!=', 'done') 
+                ('state', 'not in', ['done', 'imported']) 
             ])
             
             if target_lines:
