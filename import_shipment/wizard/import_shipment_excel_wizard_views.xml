@@ -48,6 +48,7 @@
                 </div>
 
                 <group attrs="{'invisible': [('line_ids', '!=', [])]}">
+                    <field name="transfer_method" widget="radio" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
                     <field name="import_file" filename="file_name" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
                     <field name="file_name" invisible="1"/>
                 </group>
