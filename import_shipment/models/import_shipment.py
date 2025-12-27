@@ -172,20 +172,3 @@ class ImportShipment(models.Model):
             'target': 'current',
         }
 
-    def unlink(self):
-        if self.env.context.get('confirm_delete'):
-            return super().unlink()
-        
-        wizard = self.env['import.shipment.delete.wizard'].create({
-            'shipment_ids': [(6, 0, self.ids)]
-        })
-        
-        return {
-            'name': _('Kayıt Silme Onayı'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'import.shipment.delete.wizard',
-            'view_mode': 'form',
-            'res_id': wizard.id,
-            'target': 'new',
-            'context': self.env.context,
-        }
