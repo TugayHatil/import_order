@@ -27,6 +27,22 @@ class ImportShipmentExcelWizard(models.TransientModel):
         ('failed', 'Başarısız')
     ], string='Durum Filtresi', default='all')
 
+    @api.model
+    def fields_get(self, allfields=None, attributes=None):
+        res = super(ImportShipmentExcelWizard, self).fields_get(allfields, attributes)
+        if 'line_filter' in res:
+            wizard_id = self.env.context.get('wizard_id')
+            if wizard_id:
+                wizard = self.browse(wizard_id)
+                res['line_filter']['selection'] = [
+                    ('all', f"Tümü ({wizard.count_all})"),
+                    ('pending', f"Beklemede ({wizard.count_pending})"),
+                    ('success', f"Başarılı ({wizard.count_success})"),
+                    ('warning', f"Kontrol ({wizard.count_warning})"),
+                    ('failed', f"Başarısız ({wizard.count_failed})"),
+                ]
+        return res
+
     display_line_ids = fields.Many2many('import.shipment.excel.line', compute='_compute_display_line_ids', string='Görüntülenen Satırlar')
 
     # Count fields for the filter legend
@@ -193,6 +209,8 @@ class ImportShipmentExcelWizard(models.TransientModel):
         return self._reopen_wizard()
 
     def _reopen_wizard(self):
+        ctx = dict(self.env.context)
+        ctx.update({'wizard_id': self.id})
         return {
             'name': _('Excel ile Aktar'),
             'type': 'ir.actions.act_window',
@@ -200,7 +218,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
             'view_mode': 'form',
             'target': 'new',
             'res_id': self.id,
-            'context': self.env.context,
+            'context': ctx,
         }
 
 class ImportShipmentExcelLine(models.TransientModel):

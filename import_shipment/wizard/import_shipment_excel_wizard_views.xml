@@ -56,13 +56,6 @@
                 <div attrs="{'invisible': [('line_ids', '=', [])]}">
                     <group attrs="{'invisible': [('state', 'not in', ['draft', 'validated'])]}">
                         <field name="line_filter" widget="radio" options="{'horizontal': true}"/>
-                        <div class="o_horizontal_separator mt16 mb8" style="font-size: 0.9em; color: #666;">
-                            <span>Tümü: </span><field name="count_all" readonly="1" class="font-weight-bold mr16"/>
-                            <span class="text-info">Beklemede: </span><field name="count_pending" readonly="1" class="font-weight-bold mr16"/>
-                            <span class="text-success">Başarılı: </span><field name="count_success" readonly="1" class="font-weight-bold mr16"/>
-                            <span class="text-warning">Kontrol: </span><field name="count_warning" readonly="1" class="font-weight-bold mr16"/>
-                            <span class="text-danger">Başarısız: </span><field name="count_failed" readonly="1" class="font-weight-bold"/>
-                        </div>
                     </group>
                     <field name="display_line_ids" mode="tree" readonly="1" options="{'no_open': True}"/>
                     <field name="line_ids" invisible="1"/>
