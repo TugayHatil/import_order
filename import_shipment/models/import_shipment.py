@@ -176,14 +176,16 @@ class ImportShipment(models.Model):
         if self.env.context.get('confirm_delete'):
             return super().unlink()
         
+        wizard = self.env['import.shipment.delete.wizard'].create({
+            'shipment_ids': [(6, 0, self.ids)]
+        })
+        
         return {
             'name': _('Kayıt Silme Onayı'),
             'type': 'ir.actions.act_window',
             'res_model': 'import.shipment.delete.wizard',
             'view_mode': 'form',
+            'res_id': wizard.id,
             'target': 'new',
-            'context': {
-                'shipment_ids_to_delete': self.ids,
-                'confirm_delete': True, # Ensure we don't recursive loop if someone calls it from here bypassing wizard
-            }
+            'context': self.env.context,
         }

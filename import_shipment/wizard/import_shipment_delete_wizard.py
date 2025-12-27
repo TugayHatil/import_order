@@ -4,15 +4,14 @@ class ImportShipmentDeleteWizard(models.TransientModel):
     _name = 'import.shipment.delete.wizard'
     _description = 'Import Shipment Deletion Confirmation'
 
+    shipment_ids = fields.Many2many('import.shipment', string='Shipments to Delete')
     message = fields.Text(string='Mesaj', default='Kayıtları silmek istediğinize emin misiniz?')
 
     def action_confirm(self):
-        shipment_ids = self.env.context.get('shipment_ids_to_delete')
-        if not shipment_ids:
+        if not self.shipment_ids:
             return {'type': 'ir.actions.act_window_close'}
         
-        records = self.env['import.shipment'].browse(shipment_ids)
-        records.with_context(confirm_delete=True).unlink()
+        self.shipment_ids.with_context(confirm_delete=True).unlink()
         
         return {
             'type': 'ir.actions.client',
