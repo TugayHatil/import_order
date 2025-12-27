@@ -75,24 +75,29 @@ class ImportShipmentExcelWizard(models.TransientModel):
     def _parse_excel_row(self, sheet, row_index):
         import xlrd
         try:
-            ref = str(sheet.cell_value(row_index, 0)).strip()
-            prod_code = str(sheet.cell_value(row_index, 1)).strip()
-            qty = float(sheet.cell_value(row_index, 2) or 0.0)
-            price = float(sheet.cell_value(row_index, 3) or 0.0)
+            # Robust reading of reference (handle numbers vs strings)
+            cell = sheet.cell(row_index, 0)
+            if cell.ctype == xlrd.XL_CELL_NUMBER:
+                ref = str(int(cell.value))
+            else:
+                ref = str(cell.value).strip() if cell.value else ''
+
+            qty = float(sheet.cell_value(row_index, 1) or 0.0)
+            price = float(sheet.cell_value(row_index, 2) or 0.0)
             
             # Date handling
-            date_val = sheet.cell_value(row_index, 4)
+            date_val = sheet.cell_value(row_index, 3)
             date_obj = False
             if date_val:
-                if sheet.cell_type(row_index, 4) == xlrd.XL_CELL_DATE:
+                if sheet.cell_type(row_index, 3) == xlrd.XL_CELL_DATE:
                     date_tuple = xlrd.xldate_as_tuple(date_val, sheet.book.datemode)
                     date_obj = fields.Datetime.to_datetime("%04d-%02d-%02d %02d:%02d:%02d" % date_tuple)
                 else:
                     date_obj = fields.Datetime.to_datetime(str(date_val))
             
-            return ref, prod_code, qty, price, date_obj, '', 'pending'
+            return ref, qty, price, date_obj, '', 'pending'
         except Exception as e:
-            return '', '', 0.0, 0.0, False, str(e), 'failed'
+            return '', 0.0, 0.0, False, str(e), 'failed'
 
     def action_preview(self):
         import xlrd
@@ -109,10 +114,9 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
         preview_vals = []
         for row_index in range(1, sheet.nrows): # Skip header
-            ref_val, code_val, qty_val, price_val, date_val, message, status = self._parse_excel_row(sheet, row_index)
+            ref_val, qty_val, price_val, date_val, message, status = self._parse_excel_row(sheet, row_index)
             preview_vals.append((0, 0, {
                 'reference': ref_val,
-                'product_code': code_val,
                 'quantity': qty_val,
                 'excel_price': price_val,
                 'date': date_val,
@@ -129,7 +133,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     def action_validate(self):
         self.ensure_one()
-        # Group by Reference
+        # Group result lines by Reference to handle total quantities
         grouped_lines = {}
         for line in self.line_ids:
             if line.reference not in grouped_lines:
@@ -138,21 +142,19 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
         for ref, lines in grouped_lines.items():
             total_excel_qty = sum(lines.mapped('quantity'))
-            excel_price = lines[0].excel_price # Assume same price for same reference rows
+            excel_price = lines[0].excel_price
             
-            # Find matching shipment lines
             target_lines = self.env['import.shipment'].search([
                 ('name', '=', ref),
-                ('state', 'not in', ['done', 'imported'])
+                ('state', 'not in', ['done', 'imported', 'cancel']) 
             ], order='expected_date asc, id asc')
-
+            
             if target_lines:
                 total_ordered = sum(target_lines.mapped('ordered_qty'))
                 odoo_price = target_lines[0].price_unit
-                
-                state = 'success'
                 msgs = []
-
+                state = 'success'
+                
                 if abs(odoo_price - excel_price) > 0.01:
                     state = 'warning'
                     msgs.append(_('Fiyat farkı (Sipariş: %s, Excel: %s)') % (odoo_price, excel_price))
@@ -172,7 +174,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
                 })
             else:
                 lines.write({
-                    'state': 'failed',
+                    'state': 'failed', 
                     'message': _('Eşleşen sevkiyat satırı bulunamadı.')
                 })
 
@@ -183,7 +185,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
         self.ensure_one()
         valid_lines = self.line_ids.filtered(lambda l: l.state in ['success', 'warning'])
         if not valid_lines:
-            raise UserError(_("Aktarılacak geçerli satırı yok."))
+            raise UserError(_("Aktarılacak geçerli satır yok."))
 
         pickings = self.env['stock.picking']
         shipments_map = {}
@@ -196,20 +198,21 @@ class ImportShipmentExcelWizard(models.TransientModel):
             
             for line in date_lines:
                 remaining_qty = line.quantity
-                target_lines = line.match_ids.sorted(lambda l: (l.expected_date or fields.Date.today(), l.id))
+                # Sort matching lines by expected date
+                sorted_targets = line.match_ids.sorted(lambda l: (l.expected_date or fields.Date.today(), l.id))
                 
-                for idx, sl in enumerate(target_lines):
+                for idx, sl in enumerate(sorted_targets):
                     if remaining_qty <= 0:
                         break
                     
-                    # FIFO logic: fill open_qty unless it's the last line
-                    open_qty = max(0, sl.ordered_qty - sl.imported_qty)
+                    # FIFO logic
+                    open_qty_for_this = max(0, sl.ordered_qty - sl.imported_qty)
                     
-                    if idx == len(target_lines) - 1:
-                        # Last line of the match set takes the rest (surplus)
+                    if idx == len(sorted_targets) - 1:
+                        # Last line of the match set takes the surplus
                         qty_to_write = remaining_qty
                     else:
-                        qty_to_write = min(open_qty, remaining_qty)
+                        qty_to_write = min(open_qty_for_this, remaining_qty)
                     
                     if qty_to_write > 0:
                         sl.imported_qty += qty_to_write
@@ -258,7 +261,6 @@ class ImportShipmentExcelLine(models.TransientModel):
 
     wizard_id = fields.Many2one('import.shipment.excel.wizard', string='Wizard', ondelete='cascade')
     reference = fields.Char(string='Referans')
-    product_code = fields.Char(string='Ürün Kodu')
     quantity = fields.Float(string='Miktar')
     excel_price = fields.Float(string='Excel Fiyat')
     odoo_price = fields.Float(string='Sipariş Fiyat')
