@@ -15,6 +15,7 @@ class ImportShipment(models.Model):
         ('partially_imported', 'Partially Imported'),
         ('imported', 'Imported'),
         ('done', 'Done'),
+        ('cancel', 'Cancelled'),
     ], string='Status', default='waiting', compute='_compute_state', store=True, tracking=True)
 
     partner_id = fields.Many2one('res.partner', string='Vendor', required=True)
@@ -49,10 +50,14 @@ class ImportShipment(models.Model):
             suffix = record.product_id.manufacturer_pref or ''
             record.name = f"{prefix}-{suffix}" if suffix else prefix
 
-    @api.depends('imported_qty', 'ordered_qty')
+    @api.depends('imported_qty', 'ordered_qty', 'received_qty')
     def _compute_state(self):
         for record in self:
-            if record.imported_qty >= record.ordered_qty and record.ordered_qty > 0:
+            if record.state == 'cancel':
+                continue
+            if record.received_qty >= record.ordered_qty and record.ordered_qty > 0:
+                record.state = 'done'
+            elif record.imported_qty >= record.ordered_qty and record.ordered_qty > 0:
                 record.state = 'imported'
             elif record.imported_qty > 0:
                 record.state = 'partially_imported'
@@ -165,4 +170,17 @@ class ImportShipment(models.Model):
             'view_mode': 'tree,form',
             'domain': [('id', 'in', pickings.ids)],
             'target': 'current',
+        }
+
+    def unlink(self):
+        if self.env.context.get('confirm_delete'):
+            return super().unlink()
+        
+        return {
+            'name': _('Kayıt Silme Onayı'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'import.shipment.delete.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'active_ids': self.ids}
         }

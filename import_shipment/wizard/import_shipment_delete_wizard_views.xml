@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_import_shipment_delete_wizard_form" model="ir.ui.view">
+        <field name="name">import.shipment.delete.wizard.form</field>
+        <field name="model">import.shipment.delete.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Kayıt Silme Onayı">
+                <field name="message" readonly="1"/>
+                <footer>
+                    <button name="action_confirm" string="Onayla" type="object" class="btn-primary"/>
+                    <button string="Vazgeç" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

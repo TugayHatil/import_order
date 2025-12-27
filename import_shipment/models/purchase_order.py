@@ -27,3 +27,13 @@ class PurchaseOrder(models.Model):
                         'expected_date': line.date_planned.date() if line.date_planned else False,
                     })
         return res
+
+    def button_cancel(self):
+        res = super(PurchaseOrder, self).button_cancel()
+        for order in self:
+            shipments = self.env['import.shipment'].search([
+                ('purchase_line_id', 'in', order.order_line.ids)
+            ])
+            if shipments:
+                shipments.write({'state': 'cancel'})
+        return res

@@ -4,7 +4,11 @@
         <field name="name">import.shipment.tree</field>
         <field name="model">import.shipment</field>
         <field name="arch" type="xml">
-            <tree string="Import Shipments" editable="bottom" multi_edit="1" decoration-info="state == 'waiting'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'">
+            <tree string="Import Shipments" editable="bottom" multi_edit="1" 
+                  decoration-info="state == 'waiting'" 
+                  decoration-warning="state == 'partially_imported'" 
+                  decoration-success="state == 'imported'"
+                  decoration-muted="state == 'cancel'">
                 <header>
                     <button name="%(action_import_shipment_excel_wizard)d" string="Excel ile Aktar" type="action" class="oe_highlight"/>
                 </header>
@@ -23,7 +27,12 @@
                 <field name="open_qty" readonly="1" optional="show"/>
                 <field name="product_uom_id" string="UoM" readonly="1" optional="show"/>
                 <field name="purchase_line_id" optional="hide" readonly="1"/>
-                <field name="state" widget="badge" decoration-info="state == 'waiting'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'imported'" optional="show"/>
+                <field name="state" widget="badge" 
+                       decoration-info="state == 'waiting'" 
+                       decoration-warning="state == 'partially_imported'" 
+                       decoration-success="state == 'imported'"
+                       decoration-muted="state == 'cancel'"
+                       optional="show"/>
                 <field name="picking_count" invisible="1"/>
                 <button name="action_open_related_pickings" type="object" icon="fa-truck" title="Related Pickings" attrs="{'invisible': [('picking_count', '=', 0)]}"/>
             </tree>
@@ -38,7 +47,7 @@
                 <header>
                     <button name="create_incoming_picking" string="Create Incoming Picking" type="object" class="oe_highlight" 
                             attrs="{'invisible': [('state', 'not in', ['waiting', 'partially_imported', 'imported'])]}"/>
-                    <field name="state" widget="statusbar" statusbar_visible="waiting,partially_imported,imported,done"/>
+                    <field name="state" widget="statusbar" statusbar_visible="waiting,partially_imported,imported,done,cancel"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -83,6 +92,7 @@
                 <filter string="Imported" name="imported" domain="[('state', '=', 'imported')]"/>
                 <filter string="Partially Imported" name="partially_imported" domain="[('state', '=', 'partially_imported')]"/>
                 <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+                <filter string="Cancelled" name="cancel" domain="[('state', '=', 'cancel')]"/>
                 <group expand="0" string="Group By">
                     <filter string="Vendor" name="group_by_partner" domain="[]" context="{'group_by': 'partner_id'}"/>
                     <filter string="Purchase Order" name="group_by_po" domain="[]" context="{'group_by': 'purchase_order_id'}"/>
