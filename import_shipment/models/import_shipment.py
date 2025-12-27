@@ -93,6 +93,8 @@ class ImportShipment(models.Model):
         """
         lines_to_process = self
         items_qty_map = self.env.context.get('items_qty_map')
+        move_dates_map = self.env.context.get('move_dates_map') or {}
+
         if not items_qty_map:
             # Manual trigger from form view probably
             items_qty_map = {l.id: (batch_qty or (l.imported_qty - l.received_qty)) for l in lines_to_process}
@@ -116,6 +118,13 @@ class ImportShipment(models.Model):
             if not picking_type:
                 continue
 
+            # Determine scheduled date: min of all move dates
+            final_excel_date = excel_date
+            if not final_excel_date and move_dates_map:
+                dates = [d for l_id, d in move_dates_map.items() if l_id in partner_lines.ids and d]
+                if dates:
+                    final_excel_date = min(dates)
+
             picking_vals = {
                 'partner_id': partner.id,
                 'picking_type_id': picking_type.id,
@@ -124,8 +133,8 @@ class ImportShipment(models.Model):
                 'origin': ', '.join(set(partner_lines.mapped('purchase_order_id.name'))),
                 'move_type': 'direct',
             }
-            if excel_date:
-                picking_vals['scheduled_date'] = excel_date
+            if final_excel_date:
+                picking_vals['scheduled_date'] = final_excel_date
             
             picking = self.env['stock.picking'].create(picking_vals)
             
@@ -135,6 +144,8 @@ class ImportShipment(models.Model):
                 if qty_to_process <= 0:
                     continue
                 
+                move_date = move_dates_map.get(line.id) or excel_date or fields.Datetime.now()
+
                 move_vals = {
                     'name': line.product_id.name,
                     'product_id': line.product_id.id,
@@ -146,7 +157,7 @@ class ImportShipment(models.Model):
                     'purchase_line_id': line.purchase_line_id.id,
                     'import_shipment_id': line.id,
                     'origin': line.purchase_order_id.name,
-                    'date': excel_date or fields.Datetime.now(),
+                    'date': move_date,
                 }
                 moves_to_create.append(move_vals)
             

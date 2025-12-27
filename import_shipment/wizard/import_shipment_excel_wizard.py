@@ -185,45 +185,42 @@ class ImportShipmentExcelWizard(models.TransientModel):
         self.ensure_one()
         valid_lines = self.line_ids.filtered(lambda l: l.state in ['success', 'warning'])
         if not valid_lines:
-            raise UserError(_("Aktarılacak geçerli satır yok."))
+            raise UserError(_("Aktarılacak geçerli satırı yok."))
+
+        # Compile distribution map across ALL lines
+        shipments_map = {}
+        shipments_to_process = self.env['import.shipment']
+        move_dates_map = {} # sl.id -> date
+        
+        for line in valid_lines:
+            remaining_qty = line.quantity
+            sorted_targets = line.match_ids.sorted(lambda l: (l.expected_date or fields.Date.today(), l.id))
+            
+            for idx, sl in enumerate(sorted_targets):
+                if remaining_qty <= 0:
+                    break
+                
+                open_qty_for_this = max(0, sl.ordered_qty - sl.imported_qty)
+                if idx == len(sorted_targets) - 1:
+                    qty_to_write = remaining_qty
+                else:
+                    qty_to_write = min(open_qty_for_this, remaining_qty)
+                
+                if qty_to_write > 0:
+                    sl.imported_qty += qty_to_write
+                    shipments_to_process |= sl
+                    shipments_map[sl.id] = shipments_map.get(sl.id, 0.0) + qty_to_write
+                    # Keep the date from Excel line for this shipment distribution
+                    move_dates_map[sl.id] = line.date
+                    remaining_qty -= qty_to_write
 
         pickings = self.env['stock.picking']
-        shipments_map = {}
-        
-        # Batch by Date
-        dates = list(set(valid_lines.mapped('date')))
-        for d in dates:
-            date_lines = valid_lines.filtered(lambda l: l.date == d)
-            shipments_to_process = self.env['import.shipment']
-            
-            for line in date_lines:
-                remaining_qty = line.quantity
-                # Sort matching lines by expected date
-                sorted_targets = line.match_ids.sorted(lambda l: (l.expected_date or fields.Date.today(), l.id))
-                
-                for idx, sl in enumerate(sorted_targets):
-                    if remaining_qty <= 0:
-                        break
-                    
-                    # FIFO logic
-                    open_qty_for_this = max(0, sl.ordered_qty - sl.imported_qty)
-                    
-                    if idx == len(sorted_targets) - 1:
-                        # Last line of the match set takes the surplus
-                        qty_to_write = remaining_qty
-                    else:
-                        qty_to_write = min(open_qty_for_this, remaining_qty)
-                    
-                    if qty_to_write > 0:
-                        sl.imported_qty += qty_to_write
-                        shipments_to_process |= sl
-                        shipments_map[sl.id] = shipments_map.get(sl.id, 0.0) + qty_to_write
-                        remaining_qty -= qty_to_write
-
-            if shipments_to_process:
-                batch_pickings = shipments_to_process.with_context(items_qty_map=shipments_map).create_incoming_picking(excel_date=d)
-                if batch_pickings:
-                    pickings |= batch_pickings
+        if shipments_to_process:
+            # Pass move_dates_map in context
+            pickings = shipments_to_process.with_context(
+                items_qty_map=shipments_map,
+                move_dates_map=move_dates_map
+            ).create_incoming_picking()
 
         self.write({'state': 'done'})
         
