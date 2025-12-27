@@ -29,6 +29,22 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     display_line_ids = fields.Many2many('import.shipment.excel.line', compute='_compute_display_line_ids', string='Görüntülenen Satırlar')
 
+    # Count fields for the filter legend
+    count_all = fields.Integer(compute='_compute_line_counts')
+    count_pending = fields.Integer(compute='_compute_line_counts')
+    count_success = fields.Integer(compute='_compute_line_counts')
+    count_warning = fields.Integer(compute='_compute_line_counts')
+    count_failed = fields.Integer(compute='_compute_line_counts')
+
+    @api.depends('line_ids', 'line_ids.state')
+    def _compute_line_counts(self):
+        for wizard in self:
+            wizard.count_all = len(wizard.line_ids)
+            wizard.count_pending = len(wizard.line_ids.filtered(lambda l: l.state == 'pending'))
+            wizard.count_success = len(wizard.line_ids.filtered(lambda l: l.state == 'success'))
+            wizard.count_warning = len(wizard.line_ids.filtered(lambda l: l.state == 'warning'))
+            wizard.count_failed = len(wizard.line_ids.filtered(lambda l: l.state == 'failed'))
+
     @api.depends('line_ids', 'line_filter', 'line_ids.state')
     def _compute_display_line_ids(self):
         for wizard in self:
