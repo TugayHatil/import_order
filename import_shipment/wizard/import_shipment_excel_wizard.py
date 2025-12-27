@@ -76,23 +76,23 @@ class ImportShipmentExcelWizard(models.TransientModel):
         import xlrd
         try:
             ref = str(sheet.cell_value(row_index, 0)).strip()
-            qty = float(sheet.cell_value(row_index, 1) or 0.0)
-            price = float(sheet.cell_value(row_index, 2) or 0.0)
+            prod_code = str(sheet.cell_value(row_index, 1)).strip()
+            qty = float(sheet.cell_value(row_index, 2) or 0.0)
+            price = float(sheet.cell_value(row_index, 3) or 0.0)
             
             # Date handling
-            date_val = sheet.cell_value(row_index, 3)
+            date_val = sheet.cell_value(row_index, 4)
             date_obj = False
             if date_val:
-                if sheet.cell_type(row_index, 3) == xlrd.XL_CELL_DATE:
+                if sheet.cell_type(row_index, 4) == xlrd.XL_CELL_DATE:
                     date_tuple = xlrd.xldate_as_tuple(date_val, sheet.book.datemode)
                     date_obj = fields.Datetime.to_datetime("%04d-%02d-%02d %02d:%02d:%02d" % date_tuple)
                 else:
-                    # Try to parse string if not date type?
                     date_obj = fields.Datetime.to_datetime(str(date_val))
             
-            return ref, qty, price, date_obj, '', 'pending'
+            return ref, prod_code, qty, price, date_obj, '', 'pending'
         except Exception as e:
-            return '', 0.0, 0.0, False, str(e), 'failed'
+            return '', '', 0.0, 0.0, False, str(e), 'failed'
 
     def action_preview(self):
         import xlrd
@@ -109,9 +109,10 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
         preview_vals = []
         for row_index in range(1, sheet.nrows): # Skip header
-            ref_val, qty_val, price_val, date_val, message, status = self._parse_excel_row(sheet, row_index)
+            ref_val, code_val, qty_val, price_val, date_val, message, status = self._parse_excel_row(sheet, row_index)
             preview_vals.append((0, 0, {
                 'reference': ref_val,
+                'product_code': code_val,
                 'quantity': qty_val,
                 'excel_price': price_val,
                 'date': date_val,
@@ -128,34 +129,51 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     def action_validate(self):
         self.ensure_one()
+        # Group by Reference
+        grouped_lines = {}
         for line in self.line_ids:
-            target_lines = self.env['import.shipment'].search([
-                ('name', '=', line.reference),
-                ('state', 'not in', ['done', 'imported']) 
-            ])
+            if line.reference not in grouped_lines:
+                grouped_lines[line.reference] = self.env['import.shipment.excel.line']
+            grouped_lines[line.reference] |= line
+
+        for ref, lines in grouped_lines.items():
+            total_excel_qty = sum(lines.mapped('quantity'))
+            excel_price = lines[0].excel_price # Assume same price for same reference rows
             
+            # Find matching shipment lines
+            target_lines = self.env['import.shipment'].search([
+                ('name', '=', ref),
+                ('state', 'not in', ['done', 'imported'])
+            ], order='expected_date asc, id asc')
+
             if target_lines:
+                total_ordered = sum(target_lines.mapped('ordered_qty'))
                 odoo_price = target_lines[0].price_unit
-                msgs = []
-                state = 'success'
                 
-                if abs(odoo_price - line.excel_price) > 0.01:
+                state = 'success'
+                msgs = []
+
+                if abs(odoo_price - excel_price) > 0.01:
                     state = 'warning'
-                    msgs.append(_('Fiyat farkı (Sipariş: %s, Excel: %s)') % (odoo_price, line.excel_price))
+                    msgs.append(_('Fiyat farkı (Sipariş: %s, Excel: %s)') % (odoo_price, excel_price))
+
+                if total_excel_qty > total_ordered:
+                    state = 'warning'
+                    msgs.append(_('Fazla sevkiyat (Siparişi Aşıyor: %s > %s)') % (total_excel_qty, total_ordered))
 
                 if not msgs:
-                    msgs.append(_('Eşleşme bulundu.'))
+                    msgs.append(_('Eşleşme bulundu (%s satıra dağıtılacak)') % len(target_lines))
 
-                line.write({
+                lines.write({
                     'match_ids': [(6, 0, target_lines.ids)],
                     'odoo_price': odoo_price,
                     'state': state,
                     'message': ' | '.join(msgs)
                 })
             else:
-                line.write({
-                    'state': 'failed', 
-                    'message': _('Referans bulunamadı.')
+                lines.write({
+                    'state': 'failed',
+                    'message': _('Eşleşen sevkiyat satırı bulunamadı.')
                 })
 
         self.write({'state': 'validated'})
@@ -165,28 +183,41 @@ class ImportShipmentExcelWizard(models.TransientModel):
         self.ensure_one()
         valid_lines = self.line_ids.filtered(lambda l: l.state in ['success', 'warning'])
         if not valid_lines:
-            raise UserError(_("Aktarılacak geçerli satır yok."))
+            raise UserError(_("Aktarılacak geçerli satırı yok."))
 
         pickings = self.env['stock.picking']
-
-        # Process by Date? Users might want separate pickings for separate dates.
-        dates = list(set(valid_lines.mapped('date')))
+        shipments_map = {}
         
+        # Batch by Date
+        dates = list(set(valid_lines.mapped('date')))
         for d in dates:
             date_lines = valid_lines.filtered(lambda l: l.date == d)
-            # Find all shipment lines and their quantities for this date batch
-            shipments_map = {}
             shipments_to_process = self.env['import.shipment']
             
             for line in date_lines:
-                for shipment_line in line.match_ids:
-                    # Update cumulative quantity
-                    shipment_line.imported_qty += line.quantity
-                    shipments_to_process |= shipment_line
-                    shipments_map[shipment_line.id] = line.quantity
+                remaining_qty = line.quantity
+                target_lines = line.match_ids.sorted(lambda l: (l.expected_date or fields.Date.today(), l.id))
+                
+                for idx, sl in enumerate(target_lines):
+                    if remaining_qty <= 0:
+                        break
+                    
+                    # FIFO logic: fill open_qty unless it's the last line
+                    open_qty = max(0, sl.ordered_qty - sl.imported_qty)
+                    
+                    if idx == len(target_lines) - 1:
+                        # Last line of the match set takes the rest (surplus)
+                        qty_to_write = remaining_qty
+                    else:
+                        qty_to_write = min(open_qty, remaining_qty)
+                    
+                    if qty_to_write > 0:
+                        sl.imported_qty += qty_to_write
+                        shipments_to_process |= sl
+                        shipments_map[sl.id] = shipments_map.get(sl.id, 0.0) + qty_to_write
+                        remaining_qty -= qty_to_write
 
             if shipments_to_process:
-                # Create Picking for this batch
                 batch_pickings = shipments_to_process.with_context(items_qty_map=shipments_map).create_incoming_picking(excel_date=d)
                 if batch_pickings:
                     pickings |= batch_pickings
@@ -227,6 +258,7 @@ class ImportShipmentExcelLine(models.TransientModel):
 
     wizard_id = fields.Many2one('import.shipment.excel.wizard', string='Wizard', ondelete='cascade')
     reference = fields.Char(string='Referans')
+    product_code = fields.Char(string='Ürün Kodu')
     quantity = fields.Float(string='Miktar')
     excel_price = fields.Float(string='Excel Fiyat')
     odoo_price = fields.Float(string='Sipariş Fiyat')
