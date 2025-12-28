@@ -37,14 +37,22 @@ class ImportShipmentExcelWizard(models.TransientModel):
         if 'line_filter' in res:
             wizard_id = self.env.context.get('wizard_id')
             if wizard_id:
-                wizard = self.browse(wizard_id)
-                res['line_filter']['selection'] = [
-                    ('all', f"Tümü ({wizard.count_all})"),
-                    ('pending', f"Beklemede ({wizard.count_pending})"),
-                    ('success', f"Başarılı ({wizard.count_success})"),
-                    ('warning', f"Kontrol ({wizard.count_warning})"),
-                    ('failed', f"Başarısız ({wizard.count_failed})"),
-                ]
+                wizard = self.browse(wizard_id).exists()
+                if wizard:
+                    lines = wizard.line_ids
+                    c_all = len(lines)
+                    c_pending = len(lines.filtered(lambda l: l.state == 'pending'))
+                    c_success = len(lines.filtered(lambda l: l.state == 'success'))
+                    c_warning = len(lines.filtered(lambda l: l.state == 'warning'))
+                    c_failed = len(lines.filtered(lambda l: l.state == 'failed'))
+                    
+                    res['line_filter']['selection'] = [
+                        ('all', f"Tümü ({c_all})"),
+                        ('pending', f"Beklemede ({c_pending})"),
+                        ('success', f"Başarılı ({c_success})"),
+                        ('warning', f"Kontrol ({c_warning})"),
+                        ('failed', f"Başarısız ({c_failed})"),
+                    ]
         return res
 
     display_line_ids = fields.Many2many('import.shipment.excel.line', compute='_compute_display_line_ids', string='Görüntülenen Satırlar')
