@@ -64,21 +64,27 @@ class ImportShipment(models.Model):
             else:
                 record.state = 'waiting'
 
-    def _compute_picking_count(self):
-        for record in self:
-            count = self.env['stock.picking'].search_count([
-                ('move_ids.import_shipment_id', '=', record.id)
-            ])
-            record.picking_count = count
-
     @api.depends('purchase_line_id.move_ids.state', 'purchase_line_id.move_ids.quantity_done')
     def _compute_received_qty(self):
+        """ Optimizes received quantity calculation by batching database reads. """
+        moves_data = self.env['stock.move'].read_group([
+            ('import_shipment_id', 'in', self.ids),
+            ('state', '=', 'done')
+        ], ['import_shipment_id', 'quantity_done'], ['import_shipment_id'])
+        
+        mapped_data = {d['import_shipment_id'][0]: d['quantity_done'] for d in moves_data}
         for record in self:
-            moves = self.env['stock.move'].search([
-                ('import_shipment_id', '=', record.id),
-                ('state', '=', 'done')
-            ])
-            record.received_qty = sum(moves.mapped('quantity_done'))
+            record.received_qty = mapped_data.get(record.id, 0.0)
+
+    def _compute_picking_count(self):
+        """ Optimizes picking count calculation by batching database reads. """
+        moves_data = self.env['stock.move'].read_group([
+            ('import_shipment_id', 'in', self.ids)
+        ], ['import_shipment_id', 'picking_id:count_distinct'], ['import_shipment_id'])
+        
+        mapped_data = {d['import_shipment_id'][0]: d['picking_id'] for d in moves_data}
+        for record in self:
+            record.picking_count = mapped_data.get(record.id, 0)
 
     @api.depends('ordered_qty', 'imported_qty')
     def _compute_open_qty(self):
