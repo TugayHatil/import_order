@@ -37,41 +37,32 @@ class ImportShipmentExcelWizard(models.TransientModel):
         if 'line_filter' in res:
             wizard_id = self.env.context.get('wizard_id')
             if wizard_id:
-                wizard = self.browse(wizard_id).exists()
-                if wizard:
-                    lines = wizard.line_ids
-                    c_all = len(lines)
-                    c_pending = len(lines.filtered(lambda l: l.state == 'pending'))
-                    c_success = len(lines.filtered(lambda l: l.state == 'success'))
-                    c_warning = len(lines.filtered(lambda l: l.state == 'warning'))
-                    c_failed = len(lines.filtered(lambda l: l.state == 'failed'))
-                    
-                    res['line_filter']['selection'] = [
-                        ('all', f"Tümü ({c_all})"),
-                        ('pending', f"Beklemede ({c_pending})"),
-                        ('success', f"Başarılı ({c_success})"),
-                        ('warning', f"Kontrol ({c_warning})"),
-                        ('failed', f"Başarısız ({c_failed})"),
-                    ]
+                # Use SQL to bypass ANY cache (ORM or Compute)
+                query = """
+                    SELECT state, count(*) 
+                    FROM import_shipment_excel_line 
+                    WHERE wizard_id = %s 
+                    GROUP BY state
+                """
+                self.env.cr.execute(query, [wizard_id])
+                counts = dict(self.env.cr.fetchall())
+                
+                c_pending = counts.get('pending', 0)
+                c_success = counts.get('success', 0)
+                c_warning = counts.get('warning', 0)
+                c_failed = counts.get('failed', 0)
+                c_all = sum(counts.values())
+                
+                res['line_filter']['selection'] = [
+                    ('all', f"Tümü ({c_all})"),
+                    ('pending', f"Beklemede ({c_pending})"),
+                    ('success', f"Başarılı ({c_success})"),
+                    ('warning', f"Kontrol ({c_warning})"),
+                    ('failed', f"Başarısız ({c_failed})"),
+                ]
         return res
 
     display_line_ids = fields.Many2many('import.shipment.excel.line', compute='_compute_display_line_ids', string='Görüntülenen Satırlar')
-
-    # Count fields for the filter legend
-    count_all = fields.Integer(compute='_compute_line_counts')
-    count_pending = fields.Integer(compute='_compute_line_counts')
-    count_success = fields.Integer(compute='_compute_line_counts')
-    count_warning = fields.Integer(compute='_compute_line_counts')
-    count_failed = fields.Integer(compute='_compute_line_counts')
-
-    @api.depends('line_ids', 'line_ids.state')
-    def _compute_line_counts(self):
-        for wizard in self:
-            wizard.count_all = len(wizard.line_ids)
-            wizard.count_pending = len(wizard.line_ids.filtered(lambda l: l.state == 'pending'))
-            wizard.count_success = len(wizard.line_ids.filtered(lambda l: l.state == 'success'))
-            wizard.count_warning = len(wizard.line_ids.filtered(lambda l: l.state == 'warning'))
-            wizard.count_failed = len(wizard.line_ids.filtered(lambda l: l.state == 'failed'))
 
     @api.depends('line_ids', 'line_filter', 'line_ids.state')
     def _compute_display_line_ids(self):
@@ -258,7 +249,10 @@ class ImportShipmentExcelWizard(models.TransientModel):
 
     def _reopen_wizard(self):
         ctx = dict(self.env.context)
-        ctx.update({'wizard_id': self.id})
+        ctx.update({
+            'wizard_id': self.id,
+            'force_refresh': fields.Datetime.now() # Force web client metadata refresh
+        })
         return {
             'name': _('Excel ile Aktar'),
             'type': 'ir.actions.act_window',
