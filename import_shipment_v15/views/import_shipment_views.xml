@@ -9,7 +9,7 @@
                 <field name="partner_id"/>
                 <field name="product_id"/>
                 <field name="manufacturer_code" optional="show"/>
-                <field name="po_qty"/>
+                <field name="ordered_qty"/>
                 <field name="received_qty"/>
                 <field name="open_qty"/>
                 <field name="incoming_qty" sum="Total Incoming"/>
