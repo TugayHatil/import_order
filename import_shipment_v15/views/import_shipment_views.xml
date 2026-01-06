@@ -38,7 +38,7 @@
                             <field name="manufacturer_code" readonly="1"/>
                             <field name="ordered_qty" readonly="1"/>
                             <field name="open_qty" readonly="1"/>
-                            <field name="incoming_qty"/>
+                            <field name="imported_qty"/>
                         </group>
                     </group>
                     <notebook>
