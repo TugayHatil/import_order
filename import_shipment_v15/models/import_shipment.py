@@ -23,13 +23,15 @@ class ImportShipment(models.Model):
     purchase_order_id = fields.Many2one('purchase.order', string='Purchase Order', related='purchase_line_id.order_id', store=True)
     product_id = fields.Many2one('product.product', string='Product', related='purchase_line_id.product_id', store=True)
     
-    # We use x_manufacturer_code for display/reference
+    # Custom fields
     manufacturer_code = fields.Char(string='Manufacturer Code', related='product_id.product_tmpl_id.x_manufacturer_code', store=True)
 
-    po_qty = fields.Float(string='PO Qty', related='purchase_line_id.product_qty', store=True)
-    open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=True)
-    incoming_qty = fields.Float(string='Incoming Qty', default=0.0)
+    ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True)
+    imported_qty = fields.Float(string='Imported Qty', help="Cumulative quantity imported via Excel", copy=False, default=0.0)
     received_qty = fields.Float(string='Received Qty', compute='_compute_received_qty', store=True)
+    open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=True)
+    
+    expected_date = fields.Date(string='Expected Date')
     
     picking_ids = fields.Many2many('stock.picking', string='Pickings', copy=False)
 
@@ -38,29 +40,31 @@ class ImportShipment(models.Model):
         for rec in self:
             rec.name = f"{rec.purchase_order_id.name or ''} - {rec.product_id.name or ''}"
 
-    @api.depends('po_qty', 'received_qty')
+    @api.depends('ordered_qty', 'imported_qty')
     def _compute_open_qty(self):
         for rec in self:
-            rec.open_qty = max(0.0, rec.po_qty - rec.received_qty)
+            rec.open_qty = max(0.0, rec.ordered_qty - rec.imported_qty)
 
-    @api.depends('picking_ids', 'picking_ids.state', 'picking_ids.move_line_ids_without_package.qty_done')
+    @api.depends('purchase_line_id.move_ids.state', 'purchase_line_id.move_ids.quantity_done')
     def _compute_received_qty(self):
         for rec in self:
-            # received_qty is the sum of done quantities in linked pickings
-            # In v15, move_line_ids_without_package is common, but let's be safe.
-            qty = 0.0
-            for picking in rec.picking_ids.filtered(lambda p: p.state == 'done'):
-                # find moves for this product in this picking
-                moves = picking.move_lines.filtered(lambda m: m.product_id == rec.product_id)
-                qty += sum(moves.mapped('quantity_done'))
-            rec.received_qty = qty
+            # received_qty is the sum of done quantities in moves linked to this shipment line
+            moves = self.env['stock.move'].search([
+                ('import_shipment_id', '=', rec.id),
+                ('state', '=', 'done')
+            ])
+            rec.received_qty = sum(moves.mapped('quantity_done'))
 
-    @api.depends('received_qty', 'po_qty')
+    @api.depends('received_qty', 'ordered_qty', 'imported_qty')
     def _compute_state(self):
         for rec in self:
-            if rec.received_qty >= rec.po_qty:
+            if rec.state == 'cancel':
+                continue
+            if rec.received_qty >= rec.ordered_qty and rec.ordered_qty > 0:
                 rec.state = 'done'
-            elif rec.received_qty > 0:
+            elif rec.imported_qty >= rec.ordered_qty and rec.ordered_qty > 0:
+                rec.state = 'imported'
+            elif rec.imported_qty > 0:
                 rec.state = 'partially_imported'
             else:
                 rec.state = 'waiting'
