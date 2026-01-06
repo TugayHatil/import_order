@@ -70,47 +70,17 @@ class ImportShipmentExcelWizard(models.TransientModel):
         if not shipment_lines:
             raise UserError(_("No lines with incoming quantity found to confirm."))
 
-        # Create Stock Picking
-        picking_type = self.env['stock.picking.type'].search([
-            ('code', '=', 'incoming'),
-            ('warehouse_id.company_id', '=', self.env.company.id)
-        ], limit=1)
-
-        picking_vals = {
-            'partner_id': self.partner_id.id,
-            'picking_type_id': picking_type.id,
-            'location_id': picking_type.default_location_src_id.id or self.env.ref('stock.stock_location_suppliers').id,
-            'location_dest_id': picking_type.default_location_dest_id.id,
-            'origin': _("Import Shipment Consolidation"),
-        }
-        picking = self.env['stock.picking'].create(picking_vals)
-
-        for line in shipment_lines:
-            # Create Stock Move
-            move_vals = {
-                'name': line.product_id.display_name,
-                'product_id': line.product_id.id,
-                'product_uom_qty': line.incoming_qty,
-                'product_uom': line.product_id.uom_id.id,
-                'picking_id': picking.id,
-                'location_id': picking.location_id.id,
-                'location_dest_id': picking.location_dest_id.id,
-                'purchase_line_id': line.purchase_line_id.id,
-            }
-            move = self.env['stock.move'].create(move_vals)
-            line.write({
-                'picking_ids': [(4, picking.id)],
-                'incoming_qty': 0.0 # reset after processing
-            })
-
-        picking.action_confirm()
+        pickings = shipment_lines.create_incoming_picking()
         
+        if not pickings:
+             raise UserError(_("No pickings were created. Please check quantities."))
+
         return {
             'name': _('Incoming Picking'),
             'type': 'ir.actions.act_window',
             'res_model': 'stock.picking',
-            'res_id': picking.id,
-            'view_mode': 'form',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', pickings.ids)],
             'target': 'current',
         }
 import logging
