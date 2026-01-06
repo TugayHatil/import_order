@@ -12,7 +12,8 @@
                 <field name="ordered_qty"/>
                 <field name="received_qty"/>
                 <field name="open_qty"/>
-                <field name="imported_qty" sum="Total Imported"/>
+                <field name="imported_qty" optional="show"/>
+                <field name="incoming_qty" sum="Total Incoming" optional="show"/>
                 <field name="state" widget="badge"/>
             </tree>
         </field>
