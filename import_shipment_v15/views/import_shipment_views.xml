@@ -36,7 +36,7 @@
                         <group>
                             <field name="product_id" readonly="1"/>
                             <field name="manufacturer_code" readonly="1"/>
-                            <field name="po_qty" readonly="1"/>
+                            <field name="ordered_qty" readonly="1"/>
                             <field name="open_qty" readonly="1"/>
                             <field name="incoming_qty"/>
                         </group>
