@@ -3,4 +3,4 @@ from odoo import models, fields
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
-    manufacturer_pref = fields.Char(string='Manufacturer Pref')
+    manufacturer_pref = fields.Char(string='Manufacturer Pref', help="Code used for Import Shipment matchmaking (FIFO).")

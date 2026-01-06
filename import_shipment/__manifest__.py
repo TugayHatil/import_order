@@ -1,6 +1,6 @@
 {
     'name': 'Import Shipment Management',
-    'version': '16.0.1.0.0',
+    'version': '15.0.1.0.0',
     'summary': 'Manage import shipments, consolidation, and partial receipts.',
     'description': """
         This module allows managing import shipments by:
