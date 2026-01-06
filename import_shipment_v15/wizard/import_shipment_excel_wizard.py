@@ -7,81 +7,278 @@ class ImportShipmentExcelWizard(models.TransientModel):
     _name = 'import.shipment.excel.wizard'
     _description = 'Import Shipment Excel Wizard'
 
-    file = fields.Binary(string='Excel File', required=True)
+    import_file = fields.Binary(string='Excel File', required=True)
     file_name = fields.Char(string='File Name')
-    partner_id = fields.Many2one('res.partner', string='Vendor', required=True)
+    transfer_method = fields.Selection([
+        ('order', 'Siparişe İstinaden Aktarım (Order-Based)'),
+        ('fifo', 'FIFO (Karışık Gönderim)')
+    ], string='Aktarım Yöntemi', required=True)
+    line_ids = fields.One2many('import.shipment.excel.line', 'wizard_id', string='Preview Lines')
+    
+    state = fields.Selection([
+        ('draft', 'Taslak'),
+        ('validated', 'Doğrulandı'),
+        ('done', 'Tamamlandı')
+    ], string='Status', default='draft')
 
-    def action_import(self):
-        if not self.file:
-            raise UserError(_("Please upload a file."))
-        
+    picking_ids = fields.Many2many('stock.picking', string='Created Pickings')
+
+    line_filter = fields.Selection([
+        ('all', 'Tümü'),
+        ('pending', 'Beklemede'),
+        ('success', 'Başarılı'),
+        ('warning', 'Kontrol'),
+        ('failed', 'Başarısız')
+    ], string='Durum Filtresi', default='all')
+
+    @api.model
+    def fields_get(self, allfields=None, attributes=None):
+        res = super(ImportShipmentExcelWizard, self).fields_get(allfields, attributes)
+        if 'line_filter' in res:
+            wizard_id = self.env.context.get('wizard_id')
+            if wizard_id:
+                # Use SQL to bypass ANY cache (ORM or Compute)
+                query = """
+                    SELECT state, count(*) 
+                    FROM import_shipment_excel_line 
+                    WHERE wizard_id = %s 
+                    GROUP BY state
+                """
+                self.env.cr.execute(query, [wizard_id])
+                counts = dict(self.env.cr.fetchall())
+                
+                c_pending = counts.get('pending', 0)
+                c_success = counts.get('success', 0)
+                c_warning = counts.get('warning', 0)
+                c_failed = counts.get('failed', 0)
+                c_all = sum(counts.values())
+                
+                res['line_filter']['selection'] = [
+                    ('all', f"Tümü ({c_all})"),
+                    ('pending', f"Beklemede ({c_pending})"),
+                    ('success', f"Başarılı ({c_success})"),
+                    ('warning', f"Kontrol ({c_warning})"),
+                    ('failed', f"Başarısız ({c_failed})"),
+                ]
+        return res
+
+    display_line_ids = fields.Many2many('import.shipment.excel.line', compute='_compute_display_line_ids', string='Görüntülenen Satırlar')
+
+    @api.depends('line_ids', 'line_filter', 'line_ids.state')
+    def _compute_display_line_ids(self):
+        for wizard in self:
+            if not wizard.line_filter or wizard.line_filter == 'all':
+                wizard.display_line_ids = wizard.line_ids
+            else:
+                wizard.display_line_ids = wizard.line_ids.filtered(lambda l: l.state == wizard.line_filter)
+
+    # Column mapping (0-based): 
+    # 0=Ref(PO-Pref), 1=Quantity, 2=Price, 3=Date
+    
+    def _parse_excel_row(self, sheet, row_index):
+        """ Parses a single row from Excel and handles data type conversion. """
         try:
-            workbook = xlrd.open_workbook(file_contents=base64.b64decode(self.file))
+            # Robust reading of reference (handle numbers vs strings)
+            cell = sheet.cell(row_index, 0)
+            if cell.ctype == xlrd.XL_CELL_NUMBER:
+                ref = str(int(cell.value))
+            else:
+                ref = str(cell.value).strip() if cell.value else ''
+
+            qty = float(sheet.cell_value(row_index, 1) or 0.0)
+            price = float(sheet.cell_value(row_index, 2) or 0.0)
+            
+            # Date handling
+            date_val = sheet.cell_value(row_index, 3)
+            date_obj = False
+            if date_val:
+                if sheet.cell_type(row_index, 3) == xlrd.XL_CELL_DATE:
+                    date_tuple = xlrd.xldate_as_tuple(date_val, sheet.book.datemode)
+                    date_obj = fields.Datetime.to_datetime("%04d-%02d-%02d %02d:%02d:%02d" % date_tuple)
+                else:
+                    date_obj = fields.Datetime.to_datetime(str(date_val))
+            
+            return ref, qty, price, date_obj, '', 'pending'
+        except Exception as e:
+            return '', 0.0, 0.0, False, str(e), 'failed'
+
+    def action_preview(self):
+        """ Parses the Excel file and populates the preview lines. """
+        self.ensure_one()
+        if not self.import_file:
+            raise UserError(_("Lütfen bir Excel dosyası yükleyin."))
+
+        try:
+            file_data = base64.b64decode(self.import_file)
+            workbook = xlrd.open_workbook(file_contents=file_data)
             sheet = workbook.sheet_by_index(0)
         except Exception as e:
-            raise UserError(_("Invalid file format. Please upload a valid Excel file (.xls or .xlsx). Error: %s") % str(e))
+            raise UserError(_("Excel dosyası okunamadı. Hata: %s") % str(e))
 
-        # Expected Columns: 0: Manufacturer Code / Product Ref, 1: Qty
-        # We will try to match by x_manufacturer_code first, then default ref.
+        preview_vals = []
+        for row_index in range(1, sheet.nrows): # Skip header
+            ref_val, qty_val, price_val, date_val, message, status = self._parse_excel_row(sheet, row_index)
+            preview_vals.append((0, 0, {
+                'reference': ref_val,
+                'quantity': qty_val,
+                'excel_price': price_val,
+                'date': date_val,
+                'state': status,
+                'message': message
+            }))
         
-        for row_idx in range(1, sheet.nrows):
-            code = str(sheet.cell_value(row_idx, 0)).strip()
-            qty = sheet.cell_value(row_idx, 1)
+        self.write({
+            'line_ids': [(5, 0, 0)] + preview_vals,
+            'state': 'draft'
+        })
+        
+        return self._reopen_wizard()
 
-            if not code or not qty:
-                continue
+    def action_validate(self):
+        self.ensure_one()
+        # Group result lines by Reference to handle total quantities
+        grouped_lines = {}
+        for line in self.line_ids:
+            if line.reference not in grouped_lines:
+                grouped_lines[line.reference] = self.env['import.shipment.excel.line']
+            grouped_lines[line.reference] |= line
 
-            try:
-                qty = float(qty)
-            except ValueError:
-                continue
+        for ref, lines in grouped_lines.items():
+            total_excel_qty = sum(lines.mapped('quantity'))
+            excel_price = lines[0].excel_price
+            
+            # Determine search domain based on transfer method
+            domain = [('state', 'not in', ['done', 'imported', 'cancel'])]
+            if self.transfer_method == 'order':
+                domain.append(('name', '=', ref))
+            else:
+                # FIFO matches product manufacturer prefix
+                domain.append(('manufacturer_pref', '=', ref))
 
-            # Find matching import shipment lines for this partner and product
-            # Product match: check x_manufacturer_code or default_code
-            product = self.env['product.product'].search([
-                '|', ('default_code', '=', code), 
-                ('x_manufacturer_code', '=', code)
-            ], limit=1)
+            target_lines = self.env['import.shipment'].search(domain, order='expected_date asc, id asc')
+            
+            if target_lines:
+                total_ordered = sum(target_lines.mapped('ordered_qty'))
+                odoo_price = target_lines[0].price_unit
+                msgs = []
+                state = 'success'
+                
+                if abs(odoo_price - excel_price) > 0.01:
+                    state = 'warning'
+                    msgs.append(_('Fiyat farkı (Sipariş: %s, Excel: %s)') % (odoo_price, excel_price))
 
-            if not product:
-                _logger.warning("Product not found for code: %s", code)
-                continue
+                if total_excel_qty > total_ordered:
+                    state = 'warning'
+                    msgs.append(_('Fazla sevkiyat (Siparişi Aşıyor: %s > %s)') % (total_excel_qty, total_ordered))
 
-            shipment_lines = self.env['import.shipment'].search([
-                ('partner_id', '=', self.partner_id.id),
-                ('product_id', '=', product.id),
-                ('state', 'not in', ['done', 'cancel'])
-            ])
+                if not msgs:
+                    msgs.append(_('Eşleşme bulundu (%s satıra dağıtılacak)') % len(target_lines))
 
-            if shipment_lines:
-                # Update the first matching line's incoming_qty (simplified logic)
-                shipment_lines[0].write({'incoming_qty': qty})
+                lines.write({
+                    'match_ids': [(6, 0, target_lines.ids)],
+                    'odoo_price': odoo_price,
+                    'state': state,
+                    'message': ' | '.join(msgs)
+                })
+            else:
+                lines.write({
+                    'state': 'failed', 
+                    'message': _('Eşleşen sevkiyat satırı bulunamadı.')
+                })
 
+        self.write({'state': 'validated'})
+        return self._reopen_wizard()
+
+    def action_confirm(self):
+        self.ensure_one()
+        valid_lines = self.line_ids.filtered(lambda l: l.state in ['success', 'warning'])
+        if not valid_lines:
+            raise UserError(_("Aktarılacak geçerli satırı yok."))
+
+        # Compile distribution map across ALL lines
+        shipments_map = {}
+        shipments_to_process = self.env['import.shipment']
+        move_dates_map = {} # sl.id -> date
+        
+        for line in valid_lines:
+            remaining_qty = line.quantity
+            sorted_targets = line.match_ids.sorted(lambda l: (l.expected_date or fields.Date.today(), l.id))
+            
+            for idx, sl in enumerate(sorted_targets):
+                if remaining_qty <= 0:
+                    break
+                
+                open_qty_for_this = max(0, sl.ordered_qty - sl.imported_qty)
+                if idx == len(sorted_targets) - 1:
+                    qty_to_write = remaining_qty
+                else:
+                    qty_to_write = min(open_qty_for_this, remaining_qty)
+                
+                if qty_to_write > 0:
+                    sl.imported_qty += qty_to_write
+                    shipments_to_process |= sl
+                    shipments_map[sl.id] = shipments_map.get(sl.id, 0.0) + qty_to_write
+                    # Keep the date from Excel line for this shipment distribution
+                    move_dates_map[sl.id] = line.date
+                    remaining_qty -= qty_to_write
+
+        pickings = self.env['stock.picking']
+        if shipments_to_process:
+            # Pass move_dates_map in context
+            pickings = shipments_to_process.with_context(
+                items_qty_map=shipments_map,
+                move_dates_map=move_dates_map
+            ).create_incoming_picking()
+
+        self.write({'state': 'done'})
+        
+        if pickings:
+            return {
+                'name': _('Incoming Pickings'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'stock.picking',
+                'view_mode': 'tree,form',
+                'domain': [('id', 'in', pickings.ids)],
+            }
+            
         return {'type': 'ir.actions.act_window_close'}
 
-    def action_confirm_import(self):
-        """ Creates a picking for all lines with incoming_qty > 0 for this vendor """
-        shipment_lines = self.env['import.shipment'].search([
-            ('partner_id', '=', self.partner_id.id),
-            ('incoming_qty', '>', 0),
-            ('state', 'not in', ['done', 'cancel'])
-        ])
+    def action_reset(self):
+        self.write({'state': 'draft', 'line_ids': [(5, 0, 0)]})
+        return self._reopen_wizard()
 
-        if not shipment_lines:
-            raise UserError(_("No lines with incoming quantity found to confirm."))
-
-        pickings = shipment_lines.create_incoming_picking()
-        
-        if not pickings:
-             raise UserError(_("No pickings were created. Please check quantities."))
-
+    def _reopen_wizard(self):
+        ctx = dict(self.env.context)
+        ctx.update({
+            'wizard_id': self.id,
+            'force_refresh': fields.Datetime.now() # Force web client metadata refresh
+        })
         return {
-            'name': _('Incoming Picking'),
+            'name': _('Excel ile Aktar'),
             'type': 'ir.actions.act_window',
-            'res_model': 'stock.picking',
-            'view_mode': 'tree,form',
-            'domain': [('id', 'in', pickings.ids)],
-            'target': 'current',
+            'res_model': 'import.shipment.excel.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'res_id': self.id,
+            'context': ctx,
         }
-import logging
-_logger = logging.getLogger(__name__)
+
+class ImportShipmentExcelLine(models.TransientModel):
+    _name = 'import.shipment.excel.line'
+    _description = 'Import Shipment Excel Wizard Line'
+
+    wizard_id = fields.Many2one('import.shipment.excel.wizard', string='Wizard', ondelete='cascade')
+    reference = fields.Char(string='Referans')
+    quantity = fields.Float(string='Miktar')
+    excel_price = fields.Float(string='Excel Fiyat')
+    odoo_price = fields.Float(string='Sipariş Fiyat')
+    date = fields.Datetime(string='Tarih')
+    match_ids = fields.Many2many('import.shipment', string='Matched Lines')
+    
+    state = fields.Selection([
+        ('pending', 'Beklemede'),
+        ('success', 'Başarılı'),
+        ('warning', 'Kontrol'),
+        ('failed', 'Başarısız')
+    ], string='Durum', default='pending')
+    message = fields.Char(string='Mesaj')
