@@ -5,3 +5,27 @@ class StockMove(models.Model):
 
     import_shipment_id = fields.Many2one('import.shipment', string='Import Shipment', index=True)
 
+    def write(self, vals):
+        moves_to_revert = self.env['stock.move']
+        if 'state' in vals and vals['state'] == 'cancel':
+            for move in self:
+                if move.state != 'cancel' and move.import_shipment_id:
+                    moves_to_revert |= move
+
+        res = super(StockMove, self).write(vals)
+
+        for move in moves_to_revert:
+            # Revert the quantity on the import shipment line
+            # using product_uom_qty (demand) because that's what was added
+            new_qty = max(0, move.import_shipment_id.imported_qty - move.product_uom_qty)
+            move.import_shipment_id.sudo().write({'imported_qty': new_qty})
+
+        return res
+
+    def unlink(self):
+        for move in self:
+            if move.state != 'cancel' and move.import_shipment_id:
+                new_qty = max(0, move.import_shipment_id.imported_qty - move.product_uom_qty)
+                move.import_shipment_id.sudo().write({'imported_qty': new_qty})
+        
+        return super(StockMove, self).unlink()
