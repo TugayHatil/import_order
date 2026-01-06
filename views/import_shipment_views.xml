@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_import_shipment_tree" model="ir.ui.view">
+        <field name="name">import.shipment.tree</field>
+        <field name="model">import.shipment</field>
+        <field name="arch" type="xml">
+            <tree string="Import Shipment Lines" decoration-info="state == 'waiting'" decoration-warning="state == 'partially_imported'" decoration-success="state == 'done'">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="manufacturer_code" optional="show"/>
+                <field name="po_qty"/>
+                <field name="received_qty"/>
+                <field name="open_qty"/>
+                <field name="incoming_qty" sum="Total Incoming"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_import_shipment_form" model="ir.ui.view">
+        <field name="name">import.shipment.form</field>
+        <field name="model">import.shipment</field>
+        <field name="arch" type="xml">
+            <form string="Import Shipment Line">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="purchase_line_id" readonly="1"/>
+                            <field name="purchase_order_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="product_id" readonly="1"/>
+                            <field name="manufacturer_code" readonly="1"/>
+                            <field name="po_qty" readonly="1"/>
+                            <field name="open_qty" readonly="1"/>
+                            <field name="incoming_qty"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Pickings" name="pickings">
+                            <field name="picking_ids" widget="many2many_tags" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_import_shipment_search" model="ir.ui.view">
+        <field name="name">import.shipment.search</field>
+        <field name="model">import.shipment</field>
+        <field name="arch" type="xml">
+            <search string="Search Import Shipment">
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="purchase_order_id"/>
+                <filter string="Waiting" name="waiting" domain="[('state', '=', 'waiting')]"/>
+                <filter string="Partially Imported" name="partially_imported" domain="[('state', '=', 'partially_imported')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Vendor" name="group_by_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Product" name="group_by_product" context="{'group_by': 'product_id'}"/>
+                    <filter string="Purchase Order" name="group_by_po" context="{'group_by': 'purchase_order_id'}"/>
+                </group>
+            </search>
+        </record>
+
+    <record id="action_import_shipment" model="ir.actions.act_window">
+        <field name="name">Import Shipments</field>
+        <field name="res_model">import.shipment</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_import_shipment_search"/>
+        <field name="context">{'search_default_group_by_partner': 1}</field>
+    </record>
+
+    <menuitem id="menu_import_shipment_root" name="Import Shipment" sequence="25" web_icon="stock,static/description/icon.png"/>
+    <menuitem id="menu_import_shipment_lines" name="Shipment Lines" parent="menu_import_shipment_root" action="action_import_shipment" sequence="10"/>
+    <menuitem id="menu_import_shipment_wizard" name="Excel Import" parent="menu_import_shipment_root" action="action_import_shipment_excel_wizard" sequence="20"/>
+</odoo>
