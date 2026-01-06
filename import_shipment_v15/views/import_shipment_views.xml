@@ -78,7 +78,6 @@
         <field name="context">{'search_default_group_by_partner': 1}</field>
     </record>
 
-    <menuitem id="menu_import_shipment_root" name="Import Shipment" sequence="25" web_icon="stock,static/description/icon.png"/>
-    <menuitem id="menu_import_shipment_lines" name="Shipment Lines" parent="menu_import_shipment_root" action="action_import_shipment" sequence="10"/>
-    <menuitem id="menu_import_shipment_wizard" name="Excel Import" parent="menu_import_shipment_root" action="action_import_shipment_excel_wizard" sequence="20"/>
+    <menuitem id="menu_import_shipment_lines" name="Import Shipment Lines" parent="purchase.menu_procurement_management" action="action_import_shipment" sequence="25"/>
+    <menuitem id="menu_import_shipment_wizard" name="Excel Import (Shipment)" parent="purchase.menu_procurement_management" action="action_import_shipment_excel_wizard" sequence="26"/>
 </odoo>
