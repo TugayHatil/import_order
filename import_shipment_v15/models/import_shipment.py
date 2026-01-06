@@ -186,7 +186,7 @@ class ImportShipment(models.Model):
     def action_open_related_pickings(self):
         self.ensure_one()
         pickings = self.env['stock.picking'].search([
-            ('move_ids.import_shipment_id', '=', self.id)
+            ('move_lines.import_shipment_id', '=', self.id)
         ])
         return {
             'name': _('Related Pickings'),
