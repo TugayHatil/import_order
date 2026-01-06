@@ -112,18 +112,24 @@ class ImportShipment(models.Model):
         if not lines_to_process:
             return False
 
-        # Group by partner and warehouse
-        partners = lines_to_process.mapped('partner_id')
+        # Group by partner and picking type (warehouse)
+        # Key: (partner, picking_type)
+        grouped_lines = {}
+        for line in lines_to_process:
+            # Fallback to first purchase order's picking type if not apparent (though PO relation is required)
+            po = line.purchase_order_id
+            pt = po.picking_type_id
+            if not pt:
+                continue
+            
+            key = (line.partner_id, pt)
+            if key not in grouped_lines:
+                grouped_lines[key] = self.env['import.shipment']
+            grouped_lines[key] |= line
+            
         pickings = self.env['stock.picking']
         
-        for partner in partners:
-            partner_lines = lines_to_process.filtered(lambda l: l.partner_id == partner)
-            first_po = partner_lines[0].purchase_order_id
-            picking_type = first_po.picking_type_id
-            
-            if not picking_type:
-                continue
-
+        for (partner, picking_type), partner_lines in grouped_lines.items():
             # Determine scheduled date: min of all move dates
             final_excel_date = excel_date
             if not final_excel_date and move_dates_map:
@@ -138,6 +144,7 @@ class ImportShipment(models.Model):
                 'location_dest_id': picking_type.default_location_dest_id.id,
                 'origin': ', '.join(set(partner_lines.mapped('purchase_order_id.name'))),
                 'move_type': 'direct',
+                'company_id': picking_type.company_id.id or self.env.company.id, 
             }
             if final_excel_date:
                 picking_vals['scheduled_date'] = final_excel_date
@@ -164,6 +171,7 @@ class ImportShipment(models.Model):
                     'import_shipment_id': line.id,
                     'origin': line.purchase_order_id.name,
                     'date': move_date,
+                    'company_id': picking.company_id.id,
                 }
                 moves_to_create.append(move_vals)
             
