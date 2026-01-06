@@ -28,6 +28,7 @@ class ImportShipment(models.Model):
 
     ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True)
     imported_qty = fields.Float(string='Imported Qty', help="Cumulative quantity imported via Excel", copy=False, default=0.0)
+    incoming_qty = fields.Float(string='Incoming Qty', help="Quantity being imported in current session", copy=False, default=0.0)
     received_qty = fields.Float(string='Received Qty', compute='_compute_received_qty', store=True)
     open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=True)
     
