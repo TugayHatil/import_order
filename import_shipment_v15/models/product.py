@@ -1,6 +1,6 @@
 from odoo import models, fields
 
-class ProductTemplate(models.Model):
-    _inherit = 'product.template'
+class ProductProduct(models.Model):
+    _inherit = 'product.product'
 
-    x_manufacturer_code = fields.Char(string='Üretici Kodu', help='Manufacturer part number or code for the product.')
+    manufacturer_pref = fields.Char(string='Manufacturer Pref', help='Manufacturer part number or code for the product.')

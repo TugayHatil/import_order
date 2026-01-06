@@ -24,7 +24,11 @@ class ImportShipment(models.Model):
     product_id = fields.Many2one('product.product', string='Product', related='purchase_line_id.product_id', store=True)
     
     # Custom fields
-    manufacturer_code = fields.Char(string='Manufacturer Code', related='product_id.product_tmpl_id.x_manufacturer_code', store=True)
+    manufacturer_pref = fields.Char(string='Manufacturer Pref', related='product_id.manufacturer_pref', store=True, readonly=True)
+
+    product_uom = fields.Many2one('uom.uom', string='Unit of Measure', related='purchase_line_id.product_uom', store=True, readonly=True)
+    price_unit = fields.Float(related='purchase_line_id.price_unit', string='Unit Price', store=True, readonly=True)
+    currency_id = fields.Many2one('res.currency', related='purchase_order_id.currency_id', string='Currency', store=True, readonly=True)
 
     ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True)
     imported_qty = fields.Float(string='Imported Qty', help="Cumulative quantity imported via Excel", copy=False, default=0.0)
@@ -36,10 +40,12 @@ class ImportShipment(models.Model):
     
     picking_ids = fields.Many2many('stock.picking', string='Pickings', copy=False)
 
-    @api.depends('purchase_line_id', 'purchase_line_id.order_id.name', 'product_id.name')
+    @api.depends('purchase_order_id.name', 'product_id.manufacturer_pref')
     def _compute_name(self):
-        for rec in self:
-            rec.name = f"{rec.purchase_order_id.name or ''} - {rec.product_id.name or ''}"
+        for record in self:
+            prefix = record.purchase_order_id.name or ''
+            suffix = record.product_id.manufacturer_pref or ''
+            record.name = f"{prefix} - {suffix}" if suffix else prefix
 
     @api.depends('ordered_qty', 'imported_qty')
     def _compute_open_qty(self):
