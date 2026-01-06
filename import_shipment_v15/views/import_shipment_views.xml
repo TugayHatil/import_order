@@ -67,7 +67,8 @@
                     <filter string="Purchase Order" name="group_by_po" context="{'group_by': 'purchase_order_id'}"/>
                 </group>
             </search>
-        </record>
+        </field>
+    </record>
 
     <record id="action_import_shipment" model="ir.actions.act_window">
         <field name="name">Import Shipments</field>
