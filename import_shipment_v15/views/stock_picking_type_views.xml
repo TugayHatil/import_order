@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="stock.view_picking_type_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='code']" position="after">
-                <field name="x_is_import_type" string="Is Import Type?" help="If checked, this picking type will be used for import shipments."/>
+                <field name="use_import_shipment"/>
             </xpath>
         </field>
     </record>
