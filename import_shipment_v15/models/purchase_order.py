@@ -6,7 +6,7 @@ class PurchaseOrder(models.Model):
     def _create_picking(self):
         # Filter orders: Skip picking creation if picking type has x_is_import_type
         # In v15, picking_type_id is on purchase.order
-        normal_orders = self.filtered(lambda o: not o.picking_type_id.x_is_import_type)
+        normal_orders = self.filtered(lambda o: not o.picking_type_id.use_import_shipment)
         
         # Call super only for normal orders
         if normal_orders:
