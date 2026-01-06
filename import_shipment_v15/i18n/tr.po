@@ -83,7 +83,7 @@ msgid "Product Code"
 msgstr "Ürün Kodu"
 
 #. module: import_shipment_v15
-#: field:import.shipment,manufacturer_pref:0
+#: field:import.shipment,x_manufacturer_code:0
 msgid "Manufacturer Pref"
 msgstr "Üretici Kodu"
 

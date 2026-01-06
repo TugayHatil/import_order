@@ -40,7 +40,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
             # Product match: check x_manufacturer_code or default_code
             product = self.env['product.product'].search([
                 '|', ('default_code', '=', code), 
-                ('manufacturer_pref', '=', code)
+                ('x_manufacturer_code', '=', code)
             ], limit=1)
 
             if not product:

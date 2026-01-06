@@ -86,7 +86,7 @@
                 <field name="partner_id"/>
                 <field name="purchase_order_id"/>
                 <field name="product_id"/>
-                <field name="manufacturer_pref"/>
+                <field name="x_manufacturer_code"/>
                 <filter string="Waiting" name="waiting" domain="[('state', '=', 'waiting')]"/>
                 <filter string="Imported" name="imported" domain="[('state', '=', 'imported')]"/>
                 <filter string="Partially Imported" name="partially_imported" domain="[('state', '=', 'partially_imported')]"/>
