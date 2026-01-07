@@ -67,12 +67,17 @@ class ImportShipment(models.Model):
     @api.depends('purchase_line_id.move_ids.state', 'purchase_line_id.move_ids.quantity_done')
     def _compute_received_qty(self):
         """ Optimizes received quantity calculation by batching database reads. """
-        moves_data = self.env['stock.move'].read_group([
+        # quantity_done might not be stored, avoiding read_group
+        moves = self.env['stock.move'].search([
             ('import_shipment_id', 'in', self.ids),
             ('state', '=', 'done')
-        ], ['import_shipment_id', 'quantity_done'], ['import_shipment_id'])
+        ])
         
-        mapped_data = {d['import_shipment_id'][0]: d['quantity_done'] for d in moves_data}
+        mapped_data = {}
+        for move in moves:
+            imp_id = move.import_shipment_id.id
+            mapped_data[imp_id] = mapped_data.get(imp_id, 0.0) + move.quantity_done
+            
         for record in self:
             record.received_qty = mapped_data.get(record.id, 0.0)
 
