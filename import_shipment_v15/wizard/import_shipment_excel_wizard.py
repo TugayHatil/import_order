@@ -31,6 +31,8 @@ class ImportShipmentExcelWizard(models.TransientModel):
         ('failed', 'Başarısız')
     ], string='Durum Filtresi', default='all')
 
+    picking_type_id = fields.Many2one('stock.picking.type', string='Operasyon Türü', domain=[('code', '=', 'incoming')])
+
     @api.model
     def fields_get(self, allfields=None, attributes=None):
         res = super(ImportShipmentExcelWizard, self).fields_get(allfields, attributes)
@@ -186,6 +188,14 @@ class ImportShipmentExcelWizard(models.TransientModel):
                     'message': _('Eşleşen sevkiyat satırı bulunamadı.')
                 })
 
+        # Set default picking type from the first matched line's PO
+        first_match = self.line_ids.filtered(lambda l: l.match_ids).mapped('match_ids').sorted('id')
+        if first_match:
+             # Try to get picking type from the first matched PO
+            po_picking_type = first_match[0].purchase_order_id.picking_type_id
+            if po_picking_type:
+                self.write({'picking_type_id': po_picking_type.id})
+
         self.write({'state': 'validated'})
         return self._reopen_wizard()
 
@@ -228,7 +238,7 @@ class ImportShipmentExcelWizard(models.TransientModel):
             pickings = shipments_to_process.with_context(
                 items_qty_map=shipments_map,
                 move_dates_map=move_dates_map
-            ).create_incoming_picking()
+            ).create_incoming_picking(picking_type_id=self.picking_type_id)
 
         self.write({'state': 'done'})
         

@@ -96,11 +96,12 @@ class ImportShipment(models.Model):
         for record in self:
             record.open_qty = max(0, record.ordered_qty - record.imported_qty)
 
-    def create_incoming_picking(self, batch_qty=0.0, excel_date=False):
+    def create_incoming_picking(self, batch_qty=0.0, excel_date=False, picking_type_id=False):
         """
         Creates a single incoming picking for selected import shipment lines.
         batch_qty: If provided, uses this quantity for the picking move.
         excel_date: If provided, sets the picking and move date.
+        picking_type_id: If provided, forces this picking type (and company/warehouse).
         """
         lines_to_process = self
         items_qty_map = self.env.context.get('items_qty_map')
@@ -123,7 +124,10 @@ class ImportShipment(models.Model):
         for line in lines_to_process:
             # Fallback to first purchase order's picking type if not apparent (though PO relation is required)
             po = line.purchase_order_id
-            pt = po.picking_type_id
+            
+            # Use forced picking type if available, otherwise PO's picking type
+            pt = picking_type_id or po.picking_type_id
+            
             if not pt:
                 continue
             
