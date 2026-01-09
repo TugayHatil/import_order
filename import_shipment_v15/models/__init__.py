@@ -4,3 +4,4 @@ from . import stock_warehouse_orderpoint
 from . import product_product
 from . import stock_move
 from . import stock_picking_type
+from . import product_template
