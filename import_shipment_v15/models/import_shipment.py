@@ -181,6 +181,7 @@ class ImportShipment(models.Model):
                     'origin': line.purchase_order_id.name,
                     'date': move_date,
                     'company_id': picking.company_id.id,
+                    'x_purchase_order_names': line.purchase_order_id.name,
                 }
                 moves_to_create.append(move_vals)
             

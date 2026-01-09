@@ -4,6 +4,7 @@ class StockMove(models.Model):
     _inherit = 'stock.move'
 
     import_shipment_id = fields.Many2one('import.shipment', string='Import Shipment', index=True)
+    x_purchase_order_names = fields.Char(string='Purchase Orders', help="Comma separated list of purchase orders related to this move.")
 
     def write(self, vals):
         moves_to_revert = self.env['stock.move']
