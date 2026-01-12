@@ -15,6 +15,11 @@ class StockMove(models.Model):
 
         res = super(StockMove, self).write(vals)
 
+        if vals.get('state') == 'done':
+            for move in self:
+                if move.import_shipment_id:
+                    move.import_shipment_id._compute_received_qty()
+
         for move in moves_to_revert:
             # Revert the quantity on the import shipment line
             # using product_uom_qty (demand) because that's what was added
