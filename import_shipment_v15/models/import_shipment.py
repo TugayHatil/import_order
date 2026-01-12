@@ -40,6 +40,7 @@ class ImportShipment(models.Model):
     expected_date = fields.Date(string='Expected Date', help="Initially from PO line, can be changed independently.")
     picking_id = fields.Many2one('stock.picking', string='Latest Picking', copy=False)
     picking_count = fields.Integer(compute='_compute_picking_count', string='Picking Count')
+    move_ids = fields.One2many('stock.move', 'import_shipment_id', string='Stock Moves')
     
     active = fields.Boolean(default=True)
 
@@ -64,32 +65,16 @@ class ImportShipment(models.Model):
             else:
                 record.state = 'waiting'
 
-    @api.depends('purchase_line_id.move_ids.state', 'purchase_line_id.move_ids.quantity_done')
+    @api.depends('move_ids.state', 'move_ids.quantity_done')
     def _compute_received_qty(self):
-        """ Optimizes received quantity calculation by batching database reads. """
-        # quantity_done might not be stored, avoiding read_group
-        moves = self.env['stock.move'].search([
-            ('import_shipment_id', 'in', self.ids),
-            ('state', '=', 'done')
-        ])
-        
-        mapped_data = {}
-        for move in moves:
-            imp_id = move.import_shipment_id.id
-            mapped_data[imp_id] = mapped_data.get(imp_id, 0.0) + move.quantity_done
-            
         for record in self:
-            record.received_qty = mapped_data.get(record.id, 0.0)
+            # Sum quantity_done for all linked moves that are done
+            record.received_qty = sum(move.quantity_done for move in record.move_ids if move.state == 'done')
 
+    @api.depends('move_ids.picking_id')
     def _compute_picking_count(self):
-        """ Optimizes picking count calculation by batching database reads. """
-        moves_data = self.env['stock.move'].read_group([
-            ('import_shipment_id', 'in', self.ids)
-        ], ['import_shipment_id', 'picking_id:count_distinct'], ['import_shipment_id'])
-        
-        mapped_data = {d['import_shipment_id'][0]: d['picking_id'] for d in moves_data}
         for record in self:
-            record.picking_count = mapped_data.get(record.id, 0)
+            record.picking_count = len(record.move_ids.mapped('picking_id'))
 
     @api.depends('ordered_qty', 'imported_qty')
     def _compute_open_qty(self):
