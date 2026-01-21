@@ -27,11 +27,13 @@ export class SupportPopup extends Component {
             await this.loadData();
         });
 
-        // Listen for open event on the global bus
-        this.env.bus.on("SUPPORT_POPUP:OPEN", this, () => {
-            console.log("Support Popup: Received OPEN event");
+        // Listen for open event on the global bus using standard EventTarget methods
+        this.env.bus.addEventListener("SUPPORT_POPUP:OPEN", () => {
+            console.log("SupportPopup Component: Received OPEN event via addEventListener");
             this.openPopup();
         });
+
+        console.log("SupportPopup Component: Setup finished, listening for SUPPORT_POPUP:OPEN");
     }
 
     async loadData() {
