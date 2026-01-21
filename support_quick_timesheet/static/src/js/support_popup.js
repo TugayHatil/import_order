@@ -7,6 +7,7 @@ import { registry } from "@web/core/registry";
 
 export class SupportPopup extends Component {
     setup() {
+        console.log("SupportPopup Component: setup() called");
         this.notification = useService("notification");
         this.state = useState({
             isVisible: false,
