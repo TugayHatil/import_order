@@ -28,6 +28,7 @@ export class SupportPopup extends Component {
 
         // Listen for open event on the global bus
         this.env.bus.on("SUPPORT_POPUP:OPEN", this, () => {
+            console.log("Support Popup: Received OPEN event");
             this.openPopup();
         });
     }
