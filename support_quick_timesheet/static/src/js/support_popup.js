@@ -99,49 +99,72 @@ export class SupportPopup extends Component {
                         style.textContent = rules;
                         pipWindow.document.head.appendChild(style);
                     }
-                    window.open(
-                        '/support/quick_form',
-                        'SupportQuickTimesheet',
-                        `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,scrollbars=yes`
-                    );
-                    this.closePopup();
+                } catch (e) {
+                    console.warn("Style copy error, skipping a stylesheet", e);
                 }
+            });
+
+            // 2. Critical: Copy body classes and set basic Odoo environment
+            pipWindow.document.body.className = document.body.className;
+            pipWindow.document.body.classList.add('o_web_client', 'o_web_backend');
+            pipWindow.document.body.style.background = "#fff";
+            pipWindow.document.body.style.margin = "0";
+
+            // 3. Move the component element
+            const element = this.__owl__.me.el;
+            pipWindow.document.body.appendChild(element);
+
+            element.classList.add('o_in_pip');
+            this.state.isVisible = true;
+
+            // 4. Handle closing
+            pipWindow.addEventListener("pagehide", () => {
+                element.classList.remove('o_in_pip');
+                document.body.appendChild(element);
+                this.render();
+            });
+
+        } catch (err) {
+            console.error("SupportPopup: PiP failed", err);
+            this.notification.add("Pencere açılamadı: " + err.message, { type: "danger" });
+        }
+    }
 
     async createTimesheet(slotId) {
-                    if (!this.state.partnerId || !this.state.typeId || !this.state.contactPerson) {
-                        this.notification.add("Lütfen tüm alanları doldurunuz.", { type: "danger" });
-                        return;
-                    }
+        if (!this.state.partnerId || !this.state.typeId || !this.state.contactPerson) {
+            this.notification.add("Lütfen tüm alanları doldurunuz.", { type: "danger" });
+            return;
+        }
 
-                    this.state.isProcessing = true;
-                    try {
-                        const result = await this.rpc("/web/dataset/call_kw/support.manager/create_timesheet", {
-                            model: 'support.manager',
-                            method: 'create_timesheet',
-                            args: [
-                                parseInt(this.state.partnerId),
-                                parseInt(this.state.typeId),
-                                this.state.contactPerson,
-                                parseInt(slotId)
-                            ],
-                            kwargs: {},
-                        });
+        this.state.isProcessing = true;
+        try {
+            const result = await this.rpc("/web/dataset/call_kw/support.manager/create_timesheet", {
+                model: 'support.manager',
+                method: 'create_timesheet',
+                args: [
+                    parseInt(this.state.partnerId),
+                    parseInt(this.state.typeId),
+                    this.state.contactPerson,
+                    parseInt(slotId)
+                ],
+                kwargs: {},
+            });
 
-                        if (result.status === 'success') {
-                            this.notification.add("Timesheet başarıyla oluşturuldu.", { type: "success" });
-                            this.state.contactPerson = "";
-                        }
-                    } catch (error) {
-                        console.error("SupportPopup: Error creating timesheet", error);
-                    } finally {
-                        this.state.isProcessing = false;
-                    }
-                }
+            if (result.status === 'success') {
+                this.notification.add("Timesheet başarıyla oluşturuldu.", { type: "success" });
+                this.state.contactPerson = "";
             }
+        } catch (error) {
+            console.error("SupportPopup: Error creating timesheet", error);
+        } finally {
+            this.state.isProcessing = false;
+        }
+    }
+}
 
 SupportPopup.template = "support_quick_timesheet.SupportPopup";
 
-            // Register to main components
-            registry.category("main_components").add("SupportPopup", {
-                Component: SupportPopup,
-            });
+// Register to main components
+registry.category("main_components").add("SupportPopup", {
+    Component: SupportPopup,
+});
