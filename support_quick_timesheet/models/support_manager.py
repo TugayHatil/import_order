@@ -72,3 +72,12 @@ class SupportManager(models.AbstractModel):
             'status': 'success',
             'timesheet_id': timesheet.id
         }
+
+from odoo import http
+from odoo.http import request
+
+class SupportController(http.Controller):
+    @http.route('/support/quick_form', type='http', auth='user')
+    def support_quick_form(self, **kwargs):
+        """ Render a minimal standalone support form """
+        return request.render('support_quick_timesheet.standalone_form_template')

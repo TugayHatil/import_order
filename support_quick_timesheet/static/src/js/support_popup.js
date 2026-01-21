@@ -71,6 +71,20 @@ export class SupportPopup extends Component {
         this.state.isCollapsed = false;
     }
 
+    popOut() {
+        // Open a small standalone window
+        const width = 350;
+        const height = 500;
+        const left = window.screen.width - width - 50;
+        const top = 50;
+        window.open(
+            '/support/quick_form',
+            'SupportQuickTimesheet',
+            `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,scrollbars=yes`
+        );
+        this.closePopup();
+    }
+
     async createTimesheet(slotId) {
         if (!this.state.partnerId || !this.state.typeId || !this.state.contactPerson) {
             this.notification.add("Lütfen tüm alanları doldurunuz.", { type: "danger" });

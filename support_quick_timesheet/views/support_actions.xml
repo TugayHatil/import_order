@@ -4,4 +4,42 @@
         <field name="name">Support</field>
         <field name="tag">action_open_support_popup</field>
     </record>
+
+    <template id="standalone_form_template" name="Support Quick Form Standalone">
+        <html>
+            <head>
+                <title>Quick Support</title>
+                <t t-call-assets="web.assets_backend" t-js="false"/>
+                <t t-call-assets="web.assets_common" t-js="false"/>
+                <style>
+                    body { background: #f8f9fa; padding: 20px; font-family: sans-serif; }
+                    .o_support_popup { position: relative !important; top: 0 !important; left: 0 !important; width: 100% !important; box-shadow: none !important; }
+                    .o_support_launcher { display: none !important; }
+                </style>
+            </head>
+            <body class="o_web_client">
+                <main/>
+                <t t-call-assets="web.assets_common" t-css="false"/>
+                <t t-call-assets="web.assets_backend" t-css="false"/>
+                <script type="text/javascript">
+                    odoo.define('support_quick_timesheet.standalone_init', function (require) {
+                        const { mount, Component } = require("@odoo/owl");
+                        const { SupportPopup } = require("support_quick_timesheet.SupportPopup");
+                        const dom = require("web.dom");
+                        
+                        // Minimal mock env for standalone
+                        const env = {
+                            bus: new (require("@web/core/browser/feature_detection").EventBus)(),
+                            services: {
+                                notification: { add: (m) => alert(m) },
+                                rpc: require("@web/core/network/rpc_service").rpcService.start()
+                            }
+                        };
+                        
+                        mount(SupportPopup, document.body, { env });
+                    });
+                </script>
+            </body>
+        </html>
+    </template>
 </odoo>
