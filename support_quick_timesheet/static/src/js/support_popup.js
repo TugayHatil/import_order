@@ -73,50 +73,55 @@ export class SupportPopup extends Component {
 
     async popOut() {
         if (window.documentPictureInPicture) {
-            console.log("SupportPopup: Using Document Picture-in-Picture API");
+            console.log("SupportPopup: Requesting PiP Window");
             try {
                 const pipWindow = await window.documentPictureInPicture.requestWindow({
                     width: 350,
                     height: 500,
                 });
 
-                // Copy styles to the new window
+                // Copy ALL stylesheets including external links more reliably
                 [...document.styleSheets].forEach((styleSheet) => {
                     try {
+                        const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+                        const style = pipWindow.document.createElement('style');
+                        style.textContent = cssRules;
+                        pipWindow.document.head.appendChild(style);
+                    } catch (e) {
+                        // Fallback for cross-origin or restricted stylesheets
+                        const link = pipWindow.document.createElement('link');
                         if (styleSheet.href) {
-                            const link = pipWindow.document.createElement('link');
                             link.rel = 'stylesheet';
+                            link.type = 'text/css';
                             link.href = styleSheet.href;
                             pipWindow.document.head.appendChild(link);
-                        } else {
-                            const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
-                            const style = pipWindow.document.createElement('style');
-                            style.textContent = cssRules;
-                            pipWindow.document.head.appendChild(style);
                         }
-                    } catch (e) {
-                        console.warn("Could not copy styleSheet", styleSheet, e);
                     }
                 });
 
-                // Move our element to the PIP window
+                // Set a solid background and basic Odoo styles to PiP body
+                pipWindow.document.body.style.background = "#f8f9fa";
+                pipWindow.document.body.style.margin = "0";
+                pipWindow.document.body.style.overflow = "hidden";
+                pipWindow.document.body.classList.add('o_web_client');
+
+                // Move our element
                 const container = this.__owl__.me.el;
                 pipWindow.document.body.append(container);
 
-                // Add class for PiP styling
                 container.classList.add('o_in_pip');
                 this.state.isVisible = true;
 
-                // When the PIP window closes, move the element back
-                pipWindow.addEventListener("pagehide", (event) => {
+                pipWindow.addEventListener("pagehide", () => {
                     container.classList.remove('o_in_pip');
                     document.body.append(container);
-                    this.state.isVisible = false;
+                    // Force a re-render to ensure it shows up back in the main window correctly
+                    this.render();
                 });
 
                 return;
             } catch (err) {
-                console.error("SupportPopup: PiP Request failed, falling back to window.open", err);
+                console.error("SupportPopup: PiP failed", err);
             }
         }
 
