@@ -10,14 +10,15 @@ class OpenSupportPopupAction extends Component {
     setup() {
         onMounted(() => {
             console.log("OpenSupportPopupAction: Mounted, triggering event");
-            this.env.bus.trigger("SUPPORT_POPUP:OPEN");
-            // Also try dispatching standard event if trigger fails for some reason
-            this.env.bus.dispatchEvent(new CustomEvent("SUPPORT_POPUP:OPEN"));
 
-            // Go back in history or close the current action if possible
-            // But usually we just want to stay on the current page while the popup opens
+            // Trigger the event to open the main popup component
+            this.env.bus.trigger("SUPPORT_POPUP:OPEN");
+
+            // Critical: Avoid 'No controller to restore' error.
+            // Instead of restore(), we use act_window_close to silently 'close' this action.
+            // Odoo 16 will then stay on the previous view.
             if (this.env.services.action) {
-                this.env.services.action.restore();
+                this.env.services.action.doAction("ir.actions.act_window_close");
             }
         });
     }
