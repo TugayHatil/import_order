@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <record id="view_partner_form_support_inherit" model="ir.ui.view">
-            <property name="name">res.partner.form.support.inherit</property>
-            <property name="model">res.partner</property>
-            <property name="inherit_id" ref="base.view_partner_form"/>
-            <property name="arch" type="xml">
-                <xpath expr="//field[@name='category_id']" position="after">
-                    <field name="is_support_customer"/>
-                </xpath>
-            </property>
-        </record>
-    </data>
+    <record id="view_partner_form_support_inherit" model="ir.ui.view">
+        <field name="name">res.partner.form.support.inherit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='category_id']" position="after">
+                <field name="is_support_customer"/>
+            </xpath>
+        </field>
+    </record>
 </odoo>

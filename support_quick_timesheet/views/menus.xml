@@ -1,21 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <menuitem id="menu_support_root"
-                  name="Support"
-                  web_icon="support_quick_timesheet,static/description/icon.png"
-                  sequence="10"/>
+    <menuitem id="menu_support_root"
+              name="Support"
+              web_icon="support_quick_timesheet,static/description/icon.png"
+              sequence="10"/>
 
-        <menuitem id="menu_support_support_type"
-                  name="Support Type"
-                  parent="menu_support_root"
-                  action="action_support_type"
-                  sequence="10"/>
+    <menuitem id="menu_support_support_type"
+              name="Support Type"
+              parent="menu_support_root"
+              action="action_support_type"
+              sequence="10"/>
 
-        <menuitem id="menu_support_slot"
-                  name="Slot"
-                  parent="menu_support_root"
-                  action="action_support_slot"
-                  sequence="20"/>
-    </data>
+    <menuitem id="menu_support_slot"
+              name="Slot"
+              parent="menu_support_root"
+              action="action_support_slot"
+              sequence="20"/>
 </odoo>

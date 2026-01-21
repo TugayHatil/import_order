@@ -1,22 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <record id="view_support_slot_tree" model="ir.ui.view">
-            <property name="name">support.slot.tree</property>
-            <property name="model">support.slot</property>
-            <property name="arch" type="xml">
-                <tree editable="bottom">
-                    <field name="sequence" widget="handle"/>
-                    <field name="name"/>
-                    <field name="duration"/>
-                </tree>
-            </property>
-        </record>
+    <record id="view_support_slot_tree" model="ir.ui.view">
+        <field name="name">support.slot.tree</field>
+        <field name="model">support.slot</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="duration"/>
+            </tree>
+        </field>
+    </record>
 
-        <record id="action_support_slot" model="ir.actions.act_window">
-            <property name="name">Slot</property>
-            <property name="res_model">support.slot</property>
-            <property name="view_mode">tree,form</property>
-        </record>
-    </data>
+    <record id="action_support_slot" model="ir.actions.act_window">
+        <field name="name">Slot</field>
+        <field name="res_model">support.slot</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>
