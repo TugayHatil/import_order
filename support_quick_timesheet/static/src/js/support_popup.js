@@ -25,6 +25,11 @@ export class SupportPopup extends Component {
         onWillStart(async () => {
             await this.loadData();
         });
+
+        // Listen for open event
+        this.env.bus.addEventListener("SUPPORT_POPUP:OPEN", () => {
+            this.openPopup();
+        });
     }
 
     async loadData() {

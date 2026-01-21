@@ -8,6 +8,7 @@
     'depends': ['project', 'hr_timesheet'],
     'data': [
         'security/ir.model.access.csv',
+        'views/support_actions.xml',
         'views/support_type_views.xml',
         'views/support_slot_views.xml',
         'views/res_partner_views.xml',
@@ -19,6 +20,7 @@
             'support_quick_timesheet/static/src/scss/support_popup.scss',
             'support_quick_timesheet/static/src/xml/support_popup.xml',
             'support_quick_timesheet/static/src/js/support_popup.js',
+            'support_quick_timesheet/static/src/js/open_popup_action.js',
         ],
     },
     'installable': True,

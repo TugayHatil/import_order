@@ -5,6 +5,12 @@
               web_icon="support_quick_timesheet,static/description/icon.png"
               sequence="10"/>
 
+    <menuitem id="menu_support_main"
+              name="Support"
+              parent="menu_support_root"
+              action="action_support_client"
+              sequence="5"/>
+
     <menuitem id="menu_support_support_type"
               name="Support Type"
               parent="menu_support_root"
