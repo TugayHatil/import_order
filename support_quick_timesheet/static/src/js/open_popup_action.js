@@ -1,28 +1,25 @@
 /** @odoo-module **/
 
-import { Component, onMounted } from "@odoo/owl";
 import { registry } from "@web/core/registry";
+import { env } from "@web/env";
 
 /**
- * Empty component that triggers the support popup when activated as a client action.
+ * Client action to trigger the support popup.
+ * In Odoo 16, function actions receive (action, options).
+ * We use the global env to trigger the bus event.
  */
-class OpenSupportPopupAction extends Component {
-    setup() {
-        onMounted(() => {
-            console.log("OpenSupportPopupAction: Mounted, triggering event");
+function openSupportPopupAction(action, options) {
+    console.log("Support Quick Timesheet: Menu action triggered");
 
-            // Trigger the event to open the main popup component
-            this.env.bus.trigger("SUPPORT_POPUP:OPEN");
-
-            // Critical: Avoid 'No controller to restore' error.
-            // Instead of restore(), we use act_window_close to silently 'close' this action.
-            // Odoo 16 will then stay on the previous view.
-            if (this.env.services.action) {
-                this.env.services.action.doAction("ir.actions.act_window_close");
-            }
-        });
+    // Trigger the event on the global bus
+    if (env && env.bus) {
+        env.bus.trigger("SUPPORT_POPUP:OPEN");
     }
-}
-OpenSupportPopupAction.template = "support_quick_timesheet.OpenSupportPopupAction";
 
-registry.category("actions").add("action_open_support_popup", OpenSupportPopupAction);
+    // Return an action that closes the current operation and remains on the same page
+    return {
+        type: "ir.actions.act_window_close",
+    };
+}
+
+registry.category("actions").add("action_open_support_popup", openSupportPopupAction);

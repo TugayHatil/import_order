@@ -31,10 +31,19 @@ export class SupportPopup extends Component {
         });
 
         // Use the bus service correctly in Odoo 16
-        this.env.bus.addEventListener("SUPPORT_POPUP:OPEN", () => {
+        this.openHandler = () => {
             console.log("SupportPopup: Handling OPEN event");
             this.openPopup();
-        });
+        };
+
+        this.env.bus.addEventListener("SUPPORT_POPUP:OPEN", this.openHandler);
+    }
+
+    destroy() {
+        if (this.openHandler) {
+            this.env.bus.removeEventListener("SUPPORT_POPUP:OPEN", this.openHandler);
+        }
+        super.destroy();
     }
 
     async loadData() {
