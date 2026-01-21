@@ -1,22 +1,27 @@
 /** @odoo-module **/
 
+import { Component, onMounted } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 
-registry.category("actions").add("action_open_support_popup", (env, action) => {
-    console.log("Client Action action_open_support_popup: Triggered");
+/**
+ * Empty component that triggers the support popup when activated as a client action.
+ */
+class OpenSupportPopupAction extends Component {
+    setup() {
+        onMounted(() => {
+            console.log("OpenSupportPopupAction: Mounted, triggering event");
+            this.env.bus.trigger("SUPPORT_POPUP:OPEN");
+            // Also try dispatching standard event if trigger fails for some reason
+            this.env.bus.dispatchEvent(new CustomEvent("SUPPORT_POPUP:OPEN"));
 
-    // In Odoo 16 client actions, 'env' is the first argument if it's a raw function action
-    const targetBus = env && env.bus ? env.bus : null;
-
-    if (targetBus) {
-        console.log("Client Action: Global bus found, triggering SUPPORT_POPUP:OPEN");
-        targetBus.trigger("SUPPORT_POPUP:OPEN");
-    } else {
-        console.error("Support Popup Error: Could not find bus in environment.");
-        // Last resort: try to find it via global odoo object
-        if (window.odoo && window.odoo.__WOWL_DEBUG__ && window.odoo.__WOWL_DEBUG__.root && window.odoo.__WOWL_DEBUG__.root.env) {
-            console.log("Client Action: Found bus via WOWL_DEBUG fallback");
-            window.odoo.__WOWL_DEBUG__.root.env.bus.trigger("SUPPORT_POPUP:OPEN");
-        }
+            // Go back in history or close the current action if possible
+            // But usually we just want to stay on the current page while the popup opens
+            if (this.env.services.action) {
+                this.env.services.action.restore();
+            }
+        });
     }
-});
+}
+OpenSupportPopupAction.template = "support_quick_timesheet.OpenSupportPopupAction";
+
+registry.category("actions").add("action_open_support_popup", OpenSupportPopupAction);

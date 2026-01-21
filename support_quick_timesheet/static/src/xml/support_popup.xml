@@ -47,8 +47,12 @@
             </div>
         </div>
 
-        <div t-if="!state.isVisible" class="o_support_launcher position-fixed bottom-0 end-0 m-3 btn btn-primary rounded-circle shadow" t-on-click="openPopup">
-            <i class="fa fa-life-ring fa-2x p-1"/>
+        <div t-if="!state.isVisible" class="o_support_launcher position-fixed bottom-0 end-0 m-3 btn btn-primary rounded-circle shadow d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; z-index: 1040;" t-on-click="openPopup">
+            <i class="fa fa-life-ring fa-2x"/>
         </div>
+    </t>
+
+    <t t-name="support_quick_timesheet.OpenSupportPopupAction" owl="1">
+        <div class="d-none">Opening Support...</div>
     </t>
 </templates>
