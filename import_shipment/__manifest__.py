@@ -19,6 +19,7 @@
         'views/import_shipment_views.xml',
         'views/stock_picking_type_views.xml',
         'models/product_product_views.xml',
+        'views/stock_move_views.xml',
     ],
     'installable': True,
     'application': True,

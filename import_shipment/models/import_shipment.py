@@ -40,6 +40,7 @@ class ImportShipment(models.Model):
     expected_date = fields.Date(string='Expected Date', help="Initially from PO line, can be changed independently.")
     picking_id = fields.Many2one('stock.picking', string='Latest Picking', copy=False)
     picking_count = fields.Integer(compute='_compute_picking_count', string='Picking Count')
+    move_ids = fields.One2many('stock.move', 'import_shipment_id', string='Stock Moves')
     
     active = fields.Boolean(default=True)
 
@@ -64,38 +65,28 @@ class ImportShipment(models.Model):
             else:
                 record.state = 'waiting'
 
-    @api.depends('purchase_line_id.move_ids.state', 'purchase_line_id.move_ids.quantity_done')
+    @api.depends('move_ids.state', 'move_ids.quantity_done')
     def _compute_received_qty(self):
-        """ Optimizes received quantity calculation by batching database reads. """
-        moves_data = self.env['stock.move'].read_group([
-            ('import_shipment_id', 'in', self.ids),
-            ('state', '=', 'done')
-        ], ['import_shipment_id', 'quantity_done'], ['import_shipment_id'])
-        
-        mapped_data = {d['import_shipment_id'][0]: d['quantity_done'] for d in moves_data}
         for record in self:
-            record.received_qty = mapped_data.get(record.id, 0.0)
+            # Sum quantity_done for all linked moves that are done
+            record.received_qty = sum(move.quantity_done for move in record.move_ids if move.state == 'done')
 
+    @api.depends('move_ids.picking_id')
     def _compute_picking_count(self):
-        """ Optimizes picking count calculation by batching database reads. """
-        moves_data = self.env['stock.move'].read_group([
-            ('import_shipment_id', 'in', self.ids)
-        ], ['import_shipment_id', 'picking_id:count_distinct'], ['import_shipment_id'])
-        
-        mapped_data = {d['import_shipment_id'][0]: d['picking_id'] for d in moves_data}
         for record in self:
-            record.picking_count = mapped_data.get(record.id, 0)
+            record.picking_count = len(record.move_ids.mapped('picking_id'))
 
     @api.depends('ordered_qty', 'imported_qty')
     def _compute_open_qty(self):
         for record in self:
             record.open_qty = max(0, record.ordered_qty - record.imported_qty)
 
-    def create_incoming_picking(self, batch_qty=0.0, excel_date=False):
+    def create_incoming_picking(self, batch_qty=0.0, excel_date=False, picking_type_id=False):
         """
         Creates a single incoming picking for selected import shipment lines.
         batch_qty: If provided, uses this quantity for the picking move.
         excel_date: If provided, sets the picking and move date.
+        picking_type_id: If provided, forces this picking type (and company/warehouse).
         """
         lines_to_process = self
         items_qty_map = self.env.context.get('items_qty_map')
@@ -112,18 +103,27 @@ class ImportShipment(models.Model):
         if not lines_to_process:
             return False
 
-        # Group by partner and warehouse
-        partners = lines_to_process.mapped('partner_id')
+        # Group by partner and picking type (warehouse)
+        # Key: (partner, picking_type)
+        grouped_lines = {}
+        for line in lines_to_process:
+            # Fallback to first purchase order's picking type if not apparent (though PO relation is required)
+            po = line.purchase_order_id
+            
+            # Use forced picking type if available, otherwise PO's picking type
+            pt = picking_type_id or po.picking_type_id
+            
+            if not pt:
+                continue
+            
+            key = (line.partner_id, pt)
+            if key not in grouped_lines:
+                grouped_lines[key] = self.env['import.shipment']
+            grouped_lines[key] |= line
+            
         pickings = self.env['stock.picking']
         
-        for partner in partners:
-            partner_lines = lines_to_process.filtered(lambda l: l.partner_id == partner)
-            first_po = partner_lines[0].purchase_order_id
-            picking_type = first_po.picking_type_id
-            
-            if not picking_type:
-                continue
-
+        for (partner, picking_type), partner_lines in grouped_lines.items():
             # Determine scheduled date: min of all move dates
             final_excel_date = excel_date
             if not final_excel_date and move_dates_map:
@@ -138,6 +138,7 @@ class ImportShipment(models.Model):
                 'location_dest_id': picking_type.default_location_dest_id.id,
                 'origin': ', '.join(set(partner_lines.mapped('purchase_order_id.name'))),
                 'move_type': 'direct',
+                'company_id': picking_type.company_id.id or self.env.company.id, 
             }
             if final_excel_date:
                 picking_vals['scheduled_date'] = final_excel_date
@@ -164,6 +165,8 @@ class ImportShipment(models.Model):
                     'import_shipment_id': line.id,
                     'origin': line.purchase_order_id.name,
                     'date': move_date,
+                    'company_id': picking.company_id.id,
+                    'x_purchase_order_names': line.purchase_order_id.name,
                 }
                 moves_to_create.append(move_vals)
             
@@ -178,7 +181,7 @@ class ImportShipment(models.Model):
     def action_open_related_pickings(self):
         self.ensure_one()
         pickings = self.env['stock.picking'].search([
-            ('move_ids.import_shipment_id', '=', self.id)
+            ('move_lines.import_shipment_id', '=', self.id)
         ])
         return {
             'name': _('Related Pickings'),
