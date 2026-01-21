@@ -73,48 +73,37 @@ export class SupportPopup extends Component {
 
     async popOut() {
         if (!window.documentPictureInPicture) {
-            this.notification.add("Tarayıcınız 'Her Zaman Üstte' (PiP) özelliğini desteklemiyor. Lütfen güncel bir Chrome veya Edge kullanın.", { type: "warning" });
+            this.notification.add("Tarayıcınız 'Her Zaman Üstte' (PiP) özelliğini desteklemiyor.", { type: "warning" });
             return;
         }
 
-        console.log("SupportPopup: Requesting PiP Window");
         try {
             const pipWindow = await window.documentPictureInPicture.requestWindow({
                 width: 350,
                 height: 520,
             });
 
-            // 1. Copy ALL stylesheets correctly
-            [...document.styleSheets].forEach((styleSheet) => {
-                try {
-                    if (styleSheet.href) {
-                        const link = pipWindow.document.createElement('link');
-                        link.rel = 'stylesheet';
-                        link.type = 'text/css';
-                        link.href = styleSheet.href;
-                        pipWindow.document.head.appendChild(link);
-                    } else {
-                        const style = pipWindow.document.createElement('style');
-                        const rules = [...styleSheet.cssRules].map(r => r.cssText).join('');
-                        style.textContent = rules;
-                        pipWindow.document.head.appendChild(style);
-                    }
-                } catch (e) {
-                    console.warn("Style copy error, skipping a stylesheet", e);
-                }
+            // 1. Copy ALL style elements (Link and Style tags) - Most robust method
+            const allStyleNodes = document.querySelectorAll('link[rel="stylesheet"], style');
+            allStyleNodes.forEach(node => {
+                pipWindow.document.head.appendChild(node.cloneNode(true));
             });
 
-            // 2. Critical: Copy body classes and set basic Odoo environment
+            // 2. Setup Body - Inherit classes from main window
             pipWindow.document.body.className = document.body.className;
             pipWindow.document.body.classList.add('o_web_client', 'o_web_backend');
             pipWindow.document.body.style.background = "#fff";
             pipWindow.document.body.style.margin = "0";
+            pipWindow.document.body.style.display = "block";
+            pipWindow.document.body.style.height = "100vh";
 
             // 3. Move the component element
             const element = this.__owl__.me.el;
             pipWindow.document.body.appendChild(element);
 
+            // Apply PiP specific styles
             element.classList.add('o_in_pip');
+            element.classList.remove('o_hidden');
             this.state.isVisible = true;
 
             // 4. Handle closing
@@ -124,9 +113,15 @@ export class SupportPopup extends Component {
                 this.render();
             });
 
+            console.log("SupportPopup: PiP Window initialized successfully");
+
         } catch (err) {
-            console.error("SupportPopup: PiP failed", err);
-            this.notification.add("Pencere açılamadı: " + err.message, { type: "danger" });
+            console.error("SupportPopup: PiP Error", err);
+            // Last resort: standard window.open
+            const width = 350;
+            const height = 520;
+            const left = window.screen.width - width - 50;
+            window.open('/support/quick_form', 'SupportPopOut', `width=${width},height=${height},left=${left},top=50`);
         }
     }
 
