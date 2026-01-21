@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_task_form2_support_inherit" model="ir.ui.view">
+        <property name="name">project.task.form.support.inherit</property>
+        <property name="model">project.task</property>
+        <property name="inherit_id" ref="project.view_task_form2"/>
+        <property name="arch" type="xml">
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="is_support_task"/>
+            </xpath>
+        </property>
+    </record>
+</odoo>
