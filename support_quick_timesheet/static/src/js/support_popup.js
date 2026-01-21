@@ -71,8 +71,56 @@ export class SupportPopup extends Component {
         this.state.isCollapsed = false;
     }
 
-    popOut() {
-        // Open a small standalone window
+    async popOut() {
+        if (window.documentPictureInPicture) {
+            console.log("SupportPopup: Using Document Picture-in-Picture API");
+            try {
+                const pipWindow = await window.documentPictureInPicture.requestWindow({
+                    width: 350,
+                    height: 500,
+                });
+
+                // Copy styles to the new window
+                [...document.styleSheets].forEach((styleSheet) => {
+                    try {
+                        if (styleSheet.href) {
+                            const link = pipWindow.document.createElement('link');
+                            link.rel = 'stylesheet';
+                            link.href = styleSheet.href;
+                            pipWindow.document.head.appendChild(link);
+                        } else {
+                            const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+                            const style = pipWindow.document.createElement('style');
+                            style.textContent = cssRules;
+                            pipWindow.document.head.appendChild(style);
+                        }
+                    } catch (e) {
+                        console.warn("Could not copy styleSheet", styleSheet, e);
+                    }
+                });
+
+                // Move our element to the PIP window
+                const container = this.__owl__.me.el;
+                pipWindow.document.body.append(container);
+
+                // Add class for PiP styling
+                container.classList.add('o_in_pip');
+                this.state.isVisible = true;
+
+                // When the PIP window closes, move the element back
+                pipWindow.addEventListener("pagehide", (event) => {
+                    container.classList.remove('o_in_pip');
+                    document.body.append(container);
+                    this.state.isVisible = false;
+                });
+
+                return;
+            } catch (err) {
+                console.error("SupportPopup: PiP Request failed, falling back to window.open", err);
+            }
+        }
+
+        // Fallback for older browsers
         const width = 350;
         const height = 500;
         const left = window.screen.width - width - 50;
