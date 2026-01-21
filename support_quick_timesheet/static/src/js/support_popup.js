@@ -9,7 +9,7 @@ export class SupportPopup extends Component {
     setup() {
         this.notification = useService("notification");
         this.state = useState({
-            isVisible: true,
+            isVisible: false,
             isCollapsed: false,
             isProcessing: false,
             partnerId: "",
@@ -26,8 +26,8 @@ export class SupportPopup extends Component {
             await this.loadData();
         });
 
-        // Listen for open event
-        this.env.bus.addEventListener("SUPPORT_POPUP:OPEN", () => {
+        // Listen for open event on the global bus
+        this.env.bus.on("SUPPORT_POPUP:OPEN", this, () => {
             this.openPopup();
         });
     }
