@@ -85,6 +85,16 @@ export class SupportPopup extends Component {
         const setupExternalWindow = (win) => {
             if (!win) return;
 
+            // 0. Sync Root Elements (HTML tag) - Critical for CSS Variables (Bootstrap)
+            const root = document.documentElement;
+            const winRoot = win.document.documentElement;
+            winRoot.className = root.className;
+            winRoot.style.cssText = root.style.cssText;
+            // Copy data-attributes (like data-theme)
+            Object.keys(root.dataset).forEach(key => {
+                winRoot.dataset[key] = root.dataset[key];
+            });
+
             // 1. Copy ALL style elements (Link and Style tags)
             const allStyleNodes = document.querySelectorAll('link[rel="stylesheet"], style');
             allStyleNodes.forEach(node => {
