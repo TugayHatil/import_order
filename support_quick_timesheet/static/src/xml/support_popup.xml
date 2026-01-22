@@ -1,6 +1,6 @@
 <templates>
     <t t-name="support_quick_timesheet.SupportPopup" owl="1">
-        <div class="o_support_popup" t-att-class="{ 'o_collapsed': state.isCollapsed, 'o_hidden': !state.isVisible }">
+        <div class="o_support_popup" t-ref="popup_root" t-att-class="{ 'o_collapsed': state.isCollapsed, 'o_hidden': !state.isVisible }">
             <div class="o_support_header d-flex justify-content-between align-items-center p-2 bg-primary text-white" t-on-click="toggleCollapse">
                 <span class="fw-bold"><i class="fa fa-life-ring me-2"/>Quick Support</span>
                 <div class="o_support_actions">

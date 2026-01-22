@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, onWillStart } from "@odoo/owl";
+import { Component, useState, onWillStart, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
 
@@ -8,6 +8,7 @@ export class SupportPopup extends Component {
     setup() {
         this.notification = useService("notification");
         this.rpc = useService("rpc");
+        this.popupRoot = useRef("popup_root");
         this.state = useState({
             isVisible: false,
             isCollapsed: false,
@@ -72,8 +73,18 @@ export class SupportPopup extends Component {
     }
 
     async popOut() {
+        // Safe element retrieval
+        const element = this.popupRoot.el;
+        if (!element) {
+            console.error("SupportPopup: Could not find popup root element.");
+            this.notification.add("Hata: Popup elementi bulunamadı.", { type: "danger" });
+            return;
+        }
+
         // Common function to setup the external window (PiP or standard)
         const setupExternalWindow = (win) => {
+            if (!win) return;
+
             // 1. Copy ALL style elements (Link and Style tags)
             const allStyleNodes = document.querySelectorAll('link[rel="stylesheet"], style');
             allStyleNodes.forEach(node => {
@@ -87,18 +98,10 @@ export class SupportPopup extends Component {
             win.document.body.style.margin = "0";
             win.document.body.style.display = "block";
             win.document.body.style.height = "100vh";
-            win.document.body.style.overflow = "auto"; // Ensure scrolling
+            win.document.body.style.overflow = "auto";
 
             // 3. Move the component element
-            // Accessing the root element. In OWL 2, we might not have 'this.el'.
-            // Using the internal reference as seen in the previous code, or fallback to direct DOM query if needed.
-            const element = this.__owl__.bdom ? this.__owl__.bdom.el : (this.__owl__.me ? this.__owl__.me.el : null);
-            
-            if (!element) {
-                console.error("SupportPopup: Could not find component element to move.");
-                return;
-            }
-
+            // Important: We append the exact same DOM node.
             win.document.body.appendChild(element);
 
             // Apply PiP specific styles
@@ -109,23 +112,20 @@ export class SupportPopup extends Component {
             // 4. Handle closing - Restore element to main window
             const onExternalClose = () => {
                 element.classList.remove('o_in_pip');
-                // We need to put it back where it belongs. 
-                // Since we don't know the exact parent, appending to body is a safe bet for a direct child of 'main_components'.
-                // Ideally, OWL framework handles this if we didn't break the VDOM connection too badly.
-                // Re-appending to the document body of the main window:
-                document.body.appendChild(element); 
-                this.render(); // Trigger re-render to ensure state consistency
+                // Restore to main document. 
+                // Since this is a root component in registry, we can append to body or seek a specific container.
+                // Appending to body is safe enough as it's absolutely positioned usually.
+                document.body.appendChild(element);
+                this.render();
             };
 
             win.addEventListener("pagehide", onExternalClose);
-            // Also listen to 'unload' just in case
             win.addEventListener("unload", () => {
-                 // Check if already restored to avoid double execution if pagehide fires too
-                 if (element.ownerDocument !== document) {
-                     onExternalClose();
-                 }
+                if (element.ownerDocument !== document) {
+                    onExternalClose();
+                }
             });
-            
+
             console.log("SupportPopup: External Window initialized successfully");
         };
 
@@ -140,7 +140,7 @@ export class SupportPopup extends Component {
                 return;
             }
         } catch (err) {
-            console.warn("SupportPopup: PiP API failed or not supported, falling back to window.open", err);
+            console.warn("SupportPopup: PiP API failed, falling back...", err);
         }
 
         // Fallback: standard window.open
@@ -148,23 +148,21 @@ export class SupportPopup extends Component {
             const width = 350;
             const height = 520;
             const left = window.screen.width - width - 50;
-            // Open specifically 'about:blank' to ensure we can write to it immediately
-            const popWin = window.open('about:blank', 'SupportPopOut', `width=${width},height=${height},left=${left},top=50,popup=yes`);
-            
+
+            // Use blank string for url to avoid 404s
+            const popWin = window.open('', 'SupportPopOut', `width=${width},height=${height},left=${left},top=50,popup=yes`);
+
             if (!popWin) {
                 this.notification.add("Popup blocked. Please allow popups.", { type: "warning" });
                 return;
             }
 
-            // Small delay to ensure window is ready? Usually about:blank is synchronous.
             setupExternalWindow(popWin);
-            
-            // Focus the new window
             popWin.focus();
 
         } catch (e) {
-             console.error("SupportPopup: Fallback window.open failed", e);
-             this.notification.add("Failed to open popup window.", { type: "danger" });
+            console.error("SupportPopup: Fallback window.open failed", e);
+            this.notification.add("Failed to open popup window.", { type: "danger" });
         }
     }
 
