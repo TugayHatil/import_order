@@ -72,56 +72,99 @@ export class SupportPopup extends Component {
     }
 
     async popOut() {
-        if (!window.documentPictureInPicture) {
-            this.notification.add("Tarayıcınız 'Her Zaman Üstte' (PiP) özelliğini desteklemiyor.", { type: "warning" });
-            return;
-        }
-
-        try {
-            const pipWindow = await window.documentPictureInPicture.requestWindow({
-                width: 350,
-                height: 520,
-            });
-
-            // 1. Copy ALL style elements (Link and Style tags) - Most robust method
+        // Common function to setup the external window (PiP or standard)
+        const setupExternalWindow = (win) => {
+            // 1. Copy ALL style elements (Link and Style tags)
             const allStyleNodes = document.querySelectorAll('link[rel="stylesheet"], style');
             allStyleNodes.forEach(node => {
-                pipWindow.document.head.appendChild(node.cloneNode(true));
+                win.document.head.appendChild(node.cloneNode(true));
             });
 
             // 2. Setup Body - Inherit classes from main window
-            pipWindow.document.body.className = document.body.className;
-            pipWindow.document.body.classList.add('o_web_client', 'o_web_backend');
-            pipWindow.document.body.style.background = "#fff";
-            pipWindow.document.body.style.margin = "0";
-            pipWindow.document.body.style.display = "block";
-            pipWindow.document.body.style.height = "100vh";
+            win.document.body.className = document.body.className;
+            win.document.body.classList.add('o_web_client', 'o_web_backend');
+            win.document.body.style.background = "#fff";
+            win.document.body.style.margin = "0";
+            win.document.body.style.display = "block";
+            win.document.body.style.height = "100vh";
+            win.document.body.style.overflow = "auto"; // Ensure scrolling
 
             // 3. Move the component element
-            const element = this.__owl__.me.el;
-            pipWindow.document.body.appendChild(element);
+            // Accessing the root element. In OWL 2, we might not have 'this.el'.
+            // Using the internal reference as seen in the previous code, or fallback to direct DOM query if needed.
+            const element = this.__owl__.bdom ? this.__owl__.bdom.el : (this.__owl__.me ? this.__owl__.me.el : null);
+            
+            if (!element) {
+                console.error("SupportPopup: Could not find component element to move.");
+                return;
+            }
+
+            win.document.body.appendChild(element);
 
             // Apply PiP specific styles
             element.classList.add('o_in_pip');
             element.classList.remove('o_hidden');
             this.state.isVisible = true;
 
-            // 4. Handle closing
-            pipWindow.addEventListener("pagehide", () => {
+            // 4. Handle closing - Restore element to main window
+            const onExternalClose = () => {
                 element.classList.remove('o_in_pip');
-                document.body.appendChild(element);
-                this.render();
+                // We need to put it back where it belongs. 
+                // Since we don't know the exact parent, appending to body is a safe bet for a direct child of 'main_components'.
+                // Ideally, OWL framework handles this if we didn't break the VDOM connection too badly.
+                // Re-appending to the document body of the main window:
+                document.body.appendChild(element); 
+                this.render(); // Trigger re-render to ensure state consistency
+            };
+
+            win.addEventListener("pagehide", onExternalClose);
+            // Also listen to 'unload' just in case
+            win.addEventListener("unload", () => {
+                 // Check if already restored to avoid double execution if pagehide fires too
+                 if (element.ownerDocument !== document) {
+                     onExternalClose();
+                 }
             });
+            
+            console.log("SupportPopup: External Window initialized successfully");
+        };
 
-            console.log("SupportPopup: PiP Window initialized successfully");
-
+        try {
+            // Try Document Picture-in-Picture API first
+            if (window.documentPictureInPicture) {
+                const pipWindow = await window.documentPictureInPicture.requestWindow({
+                    width: 350,
+                    height: 520,
+                });
+                setupExternalWindow(pipWindow);
+                return;
+            }
         } catch (err) {
-            console.error("SupportPopup: PiP Error", err);
-            // Last resort: standard window.open
+            console.warn("SupportPopup: PiP API failed or not supported, falling back to window.open", err);
+        }
+
+        // Fallback: standard window.open
+        try {
             const width = 350;
             const height = 520;
             const left = window.screen.width - width - 50;
-            window.open('/support/quick_form', 'SupportPopOut', `width=${width},height=${height},left=${left},top=50`);
+            // Open specifically 'about:blank' to ensure we can write to it immediately
+            const popWin = window.open('about:blank', 'SupportPopOut', `width=${width},height=${height},left=${left},top=50,popup=yes`);
+            
+            if (!popWin) {
+                this.notification.add("Popup blocked. Please allow popups.", { type: "warning" });
+                return;
+            }
+
+            // Small delay to ensure window is ready? Usually about:blank is synchronous.
+            setupExternalWindow(popWin);
+            
+            // Focus the new window
+            popWin.focus();
+
+        } catch (e) {
+             console.error("SupportPopup: Fallback window.open failed", e);
+             this.notification.add("Failed to open popup window.", { type: "danger" });
         }
     }
 
