@@ -1,18 +1,21 @@
 {
     'name': 'CRM Activity Date Control',
-    'version': '16.0.1.0.0',
+    'version': '16.0.1.1.0',
     'category': 'Sales/CRM',
-    'summary': 'Restricts activity deadline dates for CRM leads in Stage 3.',
+    'summary': 'Dynamic activity deadline control based on CRM stages and activity types.',
     'description': """
-CRM Aktivite Tarih Kontrolü
-===========================
-Bu modül, CRM fırsatları Stage 3 (Nihai Teklif) aşamasındayken 
-oluşturulan aktivitelerin en fazla 3 gün sonrasına planlanmasını zorunlu kılar.
+CRM Dinamik Aktivite Tarih Kontrolü
+==================================
+Bu modül, aktivite türleri (mail.activity_type) bazında, 
+CRM aşamalarına göre özel planlama günü sınırları ve uyarı mesajları tanımlamanıza olanak tanır.
 """,
     'author': 'Tugay Hatil',
     'website': 'https://github.com/TugayHatil',
     'depends': ['crm', 'mail'],
-    'data': [],
+    'data': [
+        'security/ir.model.access.csv',
+        'views/mail_activity_type_views.xml',
+    ],
     'installable': True,
     'application': False,
     'auto_install': False,

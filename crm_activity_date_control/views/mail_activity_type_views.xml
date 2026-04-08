@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mail_activity_type_view_form_inherit_crm" model="ir.ui.view">
+        <field name="name">mail.activity.type.view.form.inherit.crm</field>
+        <field name="model">mail.activity.type</field>
+        <field name="inherit_id" ref="mail.mail_activity_type_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page string="CRM Stage Date Control" name="crm_stage_control">
+                        <field name="crm_stage_config_ids">
+                            <tree editable="bottom">
+                                <field name="stage_id" options="{'no_create': True}"/>
+                                <field name="days_limit"/>
+                                <field name="warning_message"/>
+                            </tree>
+                        </field>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+</odoo>
