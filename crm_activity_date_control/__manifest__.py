@@ -1,6 +1,6 @@
 {
     'name': 'CRM Activity Date Control',
-    'version': '16.0.1.1.0',
+    'version': '16.0.1.2.0',
     'category': 'Sales/CRM',
     'summary': 'Dynamic activity deadline control based on CRM stages and activity types.',
     'description': """
