@@ -16,7 +16,7 @@ class ProductTemplate(models.Model):
         fields_to_track = [f for f in vals.keys() if f in tracked_field_names]
         
         if not fields_to_track:
-            return super(ProductTemplate, self).write(vals)
+            return super().write(vals)
 
         # 3. Capture old values before update
         # Using read() because it's efficient for many records
