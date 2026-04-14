@@ -45,7 +45,7 @@ class ProductTemplate(models.Model):
                     field = record._fields[field_name]
                     # Generate standard tracking value records (without saving yet)
                     val = TrackingValue.create_tracking_values(
-                        old_raw, new_raw, field_name, field, record
+                        old_raw, new_raw, field_name, field, 100, record._name
                     )
                     if val:
                         tracking_values.append((0, 0, val))
