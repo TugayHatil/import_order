@@ -34,18 +34,32 @@ class ProductTemplate(models.Model):
 
     def _log_dynamic_changes(self, fields_to_track, old_values_map):
         TrackingValue = self.env['mail.tracking.value']
+        # Fetch metadata for all tracked fields in one go for efficiency
+        fields_metadata = self.fields_get(fields_to_track)
+        
         for record in self:
             tracking_values = []
             for field_name in fields_to_track:
                 old_raw = old_values_map.get(record.id, {}).get(field_name)
                 new_raw = record[field_name]
+                field = record._fields[field_name]
+                
+                # Normalize values for comparison and tracking
+                if field.type == 'many2one':
+                    # read() returns ID for many2one in Odoo 16
+                    old_id = old_raw[0] if isinstance(old_raw, (list, tuple)) else old_raw
+                    new_id = new_raw.id if new_raw else False
+                    is_changed = old_id != new_id
+                    o_val, n_val = old_id, new_id
+                else:
+                    is_changed = old_raw != new_raw
+                    o_val, n_val = old_raw, new_raw
 
-                # Check for change
-                if old_raw != new_raw:
-                    field = record._fields[field_name]
-                    # Generate standard tracking value records (without saving yet)
+                if is_changed:
+                    col_info = fields_metadata.get(field_name)
+                    # Odoo v16 requires a metadata dict (col_info) with 'string' and 'type' keys
                     val = TrackingValue.create_tracking_values(
-                        old_raw, new_raw, field_name, field, 100, record._name
+                        o_val, n_val, field_name, col_info, 100, record._name
                     )
                     if val:
                         tracking_values.append((0, 0, val))
@@ -53,6 +67,6 @@ class ProductTemplate(models.Model):
             if tracking_values:
                 # Post to chatter using the native tracking format
                 record.message_post(
-                    body='', # If tracking_value_ids is used, body can be empty
+                    body='',
                     tracking_value_ids=tracking_values
                 )
