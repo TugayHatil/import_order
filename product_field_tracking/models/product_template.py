@@ -50,7 +50,10 @@ class ProductTemplate(models.Model):
                     old_id = old_raw[0] if isinstance(old_raw, (list, tuple)) else old_raw
                     new_id = new_raw.id if new_raw else False
                     is_changed = old_id != new_id
-                    o_val, n_val = old_id, new_id
+                    
+                    # Odoo's create_tracking_values expects recordsets for relational fields
+                    o_val = record.env[field.comodel_name].browse(old_id) if old_id else record.env[field.comodel_name]
+                    n_val = new_raw # This is already a recordset
                 else:
                     is_changed = old_raw != new_raw
                     o_val, n_val = old_raw, new_raw
