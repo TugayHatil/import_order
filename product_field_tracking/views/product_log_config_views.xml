@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="product_log_config_view_tree" model="ir.ui.view">
-        <name>product.log.config.view.tree</name>
-        <model>product.log.config</model>
-        <arch type="xml">
+        <field name="name">product.log.config.view.tree</field>
+        <field name="model">product.log.config</field>
+        <field name="arch" type="xml">
             <tree editable="bottom">
                 <field name="field_id" options="{'no_create': True, 'no_open': True}"/>
                 <field name="model_id"/>
                 <field name="field_name"/>
                 <field name="field_description"/>
             </tree>
-        </arch>
+        </field>
     </record>
+
     <record id="product_log_config_action" model="ir.actions.act_window">
-        <name>Product Log Configuration</name>
-        <res_model>product.log.config</res_model>
-        <view_mode>tree</view_mode>
+        <field name="name">Product Log Configuration</field>
+        <field name="res_model">product.log.config</field>
+        <field name="view_mode">tree</field>
     </record>
+
     <menuitem id="menu_product_log_config"
               name="Product Log"
               parent="stock.menu_stock_config_settings"
