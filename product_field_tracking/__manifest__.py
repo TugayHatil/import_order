@@ -9,8 +9,8 @@ Product Field Tracking
 This module allows users to dynamically select which product fields should be tracked in the chatter.
 Configuration is available under Inventory > Configuration > Product Log.
 """,
-    'author': 'Antigravity / Tugay Hatil',
-    'depends': ['stock', 'mail'],
+    'author': 'Tugay Hatil',
+    'depends': ['product', 'stock', 'mail'],
     'data': [
         'security/ir.model.access.csv',
         'views/product_log_config_views.xml',

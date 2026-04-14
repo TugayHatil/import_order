@@ -1,40 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <!-- List View -->
-        <record id="product_log_config_view_tree" model="ir.ui.view">
-            <name>product.log.config.view.tree</name>
-            <model>product.log.config</model>
-            <arch type="xml">
-                <tree editable="bottom">
-                    <field name="field_id" options="{'no_create': True, 'no_open': True}"/>
-                    <field name="model_id"/>
-                    <field name="field_name"/>
-                    <field name="field_description"/>
-                </tree>
-            </arch>
-        </record>
-
-        <!-- Action -->
-        <record id="product_log_config_action" model="ir.actions.act_window">
-            <name>Product Log Configuration</name>
-            <res_model>product.log.config</res_model>
-            <view_mode>tree</view_mode>
-            <help type="html">
-                <p class="o_view_nocontent_smiling_face">
-                    Add fields to track product changes!
-                </p>
-                <p>
-                    Any changes made to the fields listed here on Product Template or Product Variant will be logged in the chatter.
-                </p>
-            </help>
-        </record>
-
-        <!-- Menu Item -->
-        <menuitem id="menu_product_log_config"
-                  name="Product Log"
-                  parent="stock.menu_stock_config_settings"
-                  action="product_log_config_action"
-                  sequence="100"/>
-    </data>
+    <record id="product_log_config_view_tree" model="ir.ui.view">
+        <name>product.log.config.view.tree</name>
+        <model>product.log.config</model>
+        <arch type="xml">
+            <tree editable="bottom">
+                <field name="field_id" options="{'no_create': True, 'no_open': True}"/>
+                <field name="model_id"/>
+                <field name="field_name"/>
+                <field name="field_description"/>
+            </tree>
+        </arch>
+    </record>
+    <record id="product_log_config_action" model="ir.actions.act_window">
+        <name>Product Log Configuration</name>
+        <res_model>product.log.config</res_model>
+        <view_mode>tree</view_mode>
+    </record>
+    <menuitem id="menu_product_log_config"
+              name="Product Log"
+              parent="stock.menu_stock_config_settings"
+              action="product_log_config_action"
+              sequence="100"/>
 </odoo>
