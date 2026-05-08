@@ -6,7 +6,7 @@
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='default_code']" position="after">
+            <xpath expr="//page[@name='general_information']//group[1]" position="inside">
                 <field name="manufacturer_pref"/>
             </xpath>
         </field>
@@ -30,7 +30,19 @@
         <field name="model">product.product</field>
         <field name="inherit_id" ref="product.product_product_tree_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='default_code']" position="after">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="manufacturer_pref" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Product Template Tree View -->
+    <record id="product_template_tree_view_inherit_manufacturer_pref" model="ir.ui.view">
+        <field name="name">product.template.tree.inherit.manufacturer.pref</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
                 <field name="manufacturer_pref" optional="show"/>
             </xpath>
         </field>
