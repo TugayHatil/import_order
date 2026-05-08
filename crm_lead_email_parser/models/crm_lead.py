@@ -31,6 +31,7 @@ class CrmLead(models.Model):
                 contact_name = clean_value(name_pattern.group(1))
                 if contact_name:
                     custom_values['contact_name'] = contact_name
+                    custom_values['partner_name'] = contact_name
                     
             if email_pattern:
                 raw_email_text = email_pattern.group(1)
