@@ -14,11 +14,11 @@ class CrmLead(models.Model):
             # Convert HTML body to plain text to easily parse the text
             plaintext_body = tools.html2plaintext(body)
             
-            # Extract fields based on the specific format
-            name_pattern = re.search(r'1\.\s*Ad:\s*(.*?)(?=2\.\s*E-posta:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
-            email_pattern = re.search(r'2\.\s*E-posta:\s*(.*?)(?=3\.\s*Telefon:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
-            phone_pattern = re.search(r'3\.\s*Telefon:\s*(.*?)(?=4\.\s*Size nasıl yardımcı olabiliriz\?:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
-            desc_pattern = re.search(r'4\.\s*Size nasıl yardımcı olabiliriz\?:\s*(.*)', plaintext_body, re.DOTALL | re.IGNORECASE)
+            # Extract fields based on the specific format, being flexible with spaces
+            name_pattern = re.search(r'1\.\s*Ad\s*:\s*(.*?)(?=2\.\s*E-posta\s*:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
+            email_pattern = re.search(r'2\.\s*E-posta\s*:\s*(.*?)(?=3\.\s*Telefon\s*:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
+            phone_pattern = re.search(r'3\.\s*Telefon\s*:\s*(.*?)(?=4\.\s*Size nasıl yardımcı olabiliriz\s*\?:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
+            desc_pattern = re.search(r'4\.\s*Size nasıl yardımcı olabiliriz\s*\?:\s*(.*)', plaintext_body, re.DOTALL | re.IGNORECASE)
             
             def clean_value(val):
                 # Remove leading/trailing asterisks and spaces
@@ -37,12 +37,17 @@ class CrmLead(models.Model):
                 # Sadece e-posta adresini ayıklamak için
                 email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', raw_email_text)
                 if email_match:
-                    custom_values['email_from'] = email_match.group(0)
+                    extracted_email = email_match.group(0)
+                    custom_values['email_from'] = extracted_email
+                    msg_dict['from'] = extracted_email
+                    msg_dict['email_from'] = extracted_email
                 else:
                     # Bulunamazsa düzeltilmiş halini dene
                     email_from = clean_value(raw_email_text)
                     if email_from:
                         custom_values['email_from'] = email_from
+                        msg_dict['from'] = email_from
+                        msg_dict['email_from'] = email_from
             
             if phone_pattern:
                 phone_num = clean_value(phone_pattern.group(1))
