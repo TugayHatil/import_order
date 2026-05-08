@@ -16,6 +16,7 @@ class CrmLead(models.Model):
             
             # Extract fields based on the specific format
             name_pattern = re.search(r'1\.\s*Ad:\s*(.*?)(?=2\.\s*E-posta:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
+            email_pattern = re.search(r'2\.\s*E-posta:\s*(.*?)(?=3\.\s*Telefon:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
             phone_pattern = re.search(r'3\.\s*Telefon:\s*(.*?)(?=4\.\s*Size nasıl yardımcı olabiliriz\?:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
             desc_pattern = re.search(r'4\.\s*Size nasıl yardımcı olabiliriz\?:\s*(.*)', plaintext_body, re.DOTALL | re.IGNORECASE)
             
@@ -30,6 +31,11 @@ class CrmLead(models.Model):
                 contact_name = clean_value(name_pattern.group(1))
                 if contact_name:
                     custom_values['contact_name'] = contact_name
+                    
+            if email_pattern:
+                email_from = clean_value(email_pattern.group(1))
+                if email_from:
+                    custom_values['email_from'] = email_from
             
             if phone_pattern:
                 phone_num = clean_value(phone_pattern.group(1))
