@@ -19,18 +19,26 @@ class CrmLead(models.Model):
             phone_pattern = re.search(r'3\.\s*Telefon:\s*(.*?)(?=4\.\s*Size nasıl yardımcı olabiliriz\?:|$)', plaintext_body, re.DOTALL | re.IGNORECASE)
             desc_pattern = re.search(r'4\.\s*Size nasıl yardımcı olabiliriz\?:\s*(.*)', plaintext_body, re.DOTALL | re.IGNORECASE)
             
+            def clean_value(val):
+                # Remove leading/trailing asterisks and spaces
+                val = val.strip(' *')
+                # Remove Odoo html2plaintext link references like [1] mailto:...
+                val = re.sub(r'\s*\[\d+\]\s*(?:mailto:|http:|https:|ftp:)[^\s]*', '', val)
+                return val.strip(' *')
+
             if name_pattern:
-                contact_name = name_pattern.group(1).strip()
+                contact_name = clean_value(name_pattern.group(1))
                 if contact_name:
                     custom_values['contact_name'] = contact_name
             
             if phone_pattern:
-                mobile = phone_pattern.group(1).strip()
-                if mobile:
-                    custom_values['mobile'] = mobile
+                phone_num = clean_value(phone_pattern.group(1))
+                if phone_num:
+                    custom_values['mobile'] = phone_num
+                    custom_values['phone'] = phone_num
             
             if desc_pattern:
-                description = desc_pattern.group(1).strip()
+                description = clean_value(desc_pattern.group(1))
                 if description:
                     custom_values['description'] = description
 
