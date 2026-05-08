@@ -33,9 +33,16 @@ class CrmLead(models.Model):
                     custom_values['contact_name'] = contact_name
                     
             if email_pattern:
-                email_from = clean_value(email_pattern.group(1))
-                if email_from:
-                    custom_values['email_from'] = email_from
+                raw_email_text = email_pattern.group(1)
+                # Sadece e-posta adresini ayıklamak için
+                email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', raw_email_text)
+                if email_match:
+                    custom_values['email_from'] = email_match.group(0)
+                else:
+                    # Bulunamazsa düzeltilmiş halini dene
+                    email_from = clean_value(raw_email_text)
+                    if email_from:
+                        custom_values['email_from'] = email_from
             
             if phone_pattern:
                 phone_num = clean_value(phone_pattern.group(1))
