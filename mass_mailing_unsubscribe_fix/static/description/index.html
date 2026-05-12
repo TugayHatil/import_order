@@ -1,0 +1,46 @@
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_span12">
+            <h2 class="oe_slogan">Mass Mailing Unsubscribe Fix</h2>
+            <h3 class="oe_slogan">Fixes 404 errors in unsubscribe links</h3>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_span12">
+            <h3>Problem Solved</h3>
+            <p class="oe_mt32">
+                In Odoo Premium, users clicking the unsubscribe button in email templates 
+                received 404 errors because the URL replacement logic was not working correctly 
+                for relative URLs in templates.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_span12">
+            <h3>How It Works</h3>
+            <p class="oe_mt32">
+                This module overrides the <code>_send_prepare_values</code> method in 
+                <code>mail.mail</code> to properly handle both absolute and relative URLs 
+                in email templates, ensuring the unsubscribe links work correctly.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_span12">
+            <h3>Installation</h3>
+            <p class="oe_mt32">
+                Simply install this module and restart your Odoo server. The fix will be 
+                automatically applied to all new and existing email templates.
+            </p>
+        </div>
+    </div>
+</section>
