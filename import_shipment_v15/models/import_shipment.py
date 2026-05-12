@@ -1,0 +1,194 @@
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
+
+class ImportShipment(models.Model):
+    _name = 'import.shipment'
+    _description = 'Import Shipment Line'
+    _order = 'id desc'
+
+    name = fields.Char(string='Name', compute='_compute_name', store=True, readonly=True)
+    state = fields.Selection([
+        ('waiting', 'Waiting'),
+        ('partially_imported', 'Partially Imported'),
+        ('imported', 'Imported'),
+        ('done', 'Done'),
+        ('cancel', 'Cancelled'),
+    ], string='Status', default='waiting', compute='_compute_state', store=True, tracking=True)
+
+    partner_id = fields.Many2one('res.partner', string='Vendor', required=True)
+    purchase_line_id = fields.Many2one('purchase.order.line', string='Purchase Order Line', required=True, ondelete='cascade')
+    purchase_order_id = fields.Many2one('purchase.order', related='purchase_line_id.order_id', string='Purchase Order', store=True, readonly=True)
+    
+    product_id = fields.Many2one('product.product', string='Product', related='purchase_line_id.product_id', store=True, readonly=True)
+    product_default_code = fields.Char(related='product_id.default_code', string='Product Code', store=True, readonly=True)
+    manufacturer_pref = fields.Char(related='product_id.manufacturer_pref', string='Manufacturer Pref', store=True, readonly=True)
+    
+    product_uom = fields.Many2one('uom.uom', string='Unit of Measure', related='purchase_line_id.product_uom', store=True, readonly=True)
+    product_uom_id = fields.Many2one('uom.uom', related='product_id.uom_id', string='Unit of Measure', store=True, readonly=True)
+    
+    price_unit = fields.Float(related='purchase_line_id.price_unit', string='Unit Price', store=True, readonly=True)
+    currency_id = fields.Many2one('res.currency', related='purchase_order_id.currency_id', string='Currency', store=True, readonly=True)
+    
+    ordered_qty = fields.Float(string='Ordered Qty', related='purchase_line_id.product_qty', store=True, readonly=True)
+    imported_qty = fields.Float(string='Imported Qty', help="Cumulative quantity imported via Excel", copy=False, default=0.0)
+    received_qty = fields.Float(string='Received Qty', compute='_compute_received_qty', store=True, copy=False)
+    open_qty = fields.Float(string='Open Qty', compute='_compute_open_qty', store=True, help="Ordered - Imported")
+    
+    expected_date = fields.Date(string='Expected Date', help="Initially from PO line, can be changed independently.")
+    picking_id = fields.Many2one('stock.picking', string='Latest Picking', copy=False)
+    picking_count = fields.Integer(compute='_compute_picking_count', string='Picking Count')
+    move_ids = fields.One2many('stock.move', 'import_shipment_id', string='Stock Moves')
+    
+    active = fields.Boolean(default=True)
+
+    @api.depends('purchase_order_id.name', 'product_id.manufacturer_pref')
+    def _compute_name(self):
+        for record in self:
+            prefix = record.purchase_order_id.name or ''
+            suffix = record.product_id.manufacturer_pref or ''
+            record.name = f"{prefix}-{suffix}" if suffix else prefix
+
+    @api.depends('imported_qty', 'ordered_qty', 'received_qty')
+    def _compute_state(self):
+        for record in self:
+            if record.state == 'cancel':
+                continue
+            if record.received_qty >= record.ordered_qty and record.ordered_qty > 0:
+                record.state = 'done'
+            elif record.imported_qty >= record.ordered_qty and record.ordered_qty > 0:
+                record.state = 'imported'
+            elif record.imported_qty > 0:
+                record.state = 'partially_imported'
+            else:
+                record.state = 'waiting'
+
+    @api.depends('move_ids.state', 'move_ids.quantity_done')
+    def _compute_received_qty(self):
+        for record in self:
+            # Sum quantity_done for all linked moves that are done
+            record.received_qty = sum(move.quantity_done for move in record.move_ids if move.state == 'done')
+
+    @api.depends('move_ids.picking_id')
+    def _compute_picking_count(self):
+        for record in self:
+            record.picking_count = len(record.move_ids.mapped('picking_id'))
+
+    @api.depends('ordered_qty', 'imported_qty')
+    def _compute_open_qty(self):
+        for record in self:
+            record.open_qty = max(0, record.ordered_qty - record.imported_qty)
+
+    def create_incoming_picking(self, batch_qty=0.0, excel_date=False, picking_type_id=False):
+        """
+        Creates a single incoming picking for selected import shipment lines.
+        batch_qty: If provided, uses this quantity for the picking move.
+        excel_date: If provided, sets the picking and move date.
+        picking_type_id: If provided, forces this picking type (and company/warehouse).
+        """
+        lines_to_process = self
+        items_qty_map = self.env.context.get('items_qty_map')
+        move_dates_map = self.env.context.get('move_dates_map') or {}
+
+        if not items_qty_map:
+            # Manual trigger from form view probably
+            items_qty_map = {l.id: (batch_qty or (l.imported_qty - l.received_qty)) for l in lines_to_process}
+
+        # Filter lines where qty > 0
+        valid_line_ids = [l_id for l_id, qty in items_qty_map.items() if qty > 0]
+        lines_to_process = self.filtered(lambda l: l.id in valid_line_ids)
+
+        if not lines_to_process:
+            return False
+
+        # Group by partner and picking type (warehouse)
+        # Key: (partner, picking_type)
+        grouped_lines = {}
+        for line in lines_to_process:
+            # Fallback to first purchase order's picking type if not apparent (though PO relation is required)
+            po = line.purchase_order_id
+            
+            # Use forced picking type if available, otherwise PO's picking type
+            pt = picking_type_id or po.picking_type_id
+            
+            if not pt:
+                continue
+            
+            key = (line.partner_id, pt)
+            if key not in grouped_lines:
+                grouped_lines[key] = self.env['import.shipment']
+            grouped_lines[key] |= line
+            
+        pickings = self.env['stock.picking']
+        
+        for (partner, picking_type), partner_lines in grouped_lines.items():
+            # Determine scheduled date: min of all move dates
+            final_excel_date = excel_date
+            if not final_excel_date and move_dates_map:
+                dates = [d for l_id, d in move_dates_map.items() if l_id in partner_lines.ids and d]
+                if dates:
+                    final_excel_date = min(dates)
+
+            picking_vals = {
+                'partner_id': partner.id,
+                'picking_type_id': picking_type.id,
+                'location_id': partner.property_stock_supplier.id,
+                'location_dest_id': picking_type.default_location_dest_id.id,
+                'origin': ', '.join(set(partner_lines.mapped('purchase_order_id.name'))),
+                'move_type': 'direct',
+                'company_id': picking_type.company_id.id or self.env.company.id, 
+            }
+            if final_excel_date:
+                picking_vals['scheduled_date'] = final_excel_date
+            
+            picking = self.env['stock.picking'].create(picking_vals)
+            
+            moves_to_create = []
+            for line in partner_lines:
+                qty_to_process = items_qty_map.get(line.id, 0.0)
+                if qty_to_process <= 0:
+                    continue
+                
+                move_date = move_dates_map.get(line.id) or excel_date or fields.Datetime.now()
+
+                move_vals = {
+                    'name': line.product_id.name,
+                    'product_id': line.product_id.id,
+                    'product_uom_qty': qty_to_process,
+                    'product_uom': line.product_uom.id,
+                    'picking_id': picking.id,
+                    'location_id': picking.location_id.id,
+                    'location_dest_id': picking.location_dest_id.id,
+                    'purchase_line_id': line.purchase_line_id.id,
+                    'import_shipment_id': line.id,
+                    'origin': line.purchase_order_id.name,
+                    'date': move_date,
+                    'company_id': picking.company_id.id,
+                    'x_purchase_order_names': line.purchase_order_id.name,
+                }
+                moves_to_create.append(move_vals)
+            
+            if moves_to_create:
+                self.env['stock.move'].create(moves_to_create)
+                picking.action_confirm()
+                partner_lines.write({'picking_id': picking.id})
+                pickings |= picking
+
+        return pickings
+
+    def action_open_related_pickings(self):
+        self.ensure_one()
+        pickings = self.env['stock.picking'].search([
+            ('move_lines.import_shipment_id', '=', self.id)
+        ])
+        return {
+            'name': _('Related Pickings'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'stock.picking',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', pickings.ids)],
+            'target': 'current',
+        }
+
