@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Maintenance Equipment Form View -->
+        <record id="maintenance_equipment_form_view_inherit" model="ir.ui.view">
+            <field name="name">maintenance.equipment.form.inherit</field>
+            <field name="model">maintenance.equipment</field>
+            <field name="inherit_id" ref="maintenance.hr_equipment_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button name="action_view_products" 
+                            type="object" 
+                            class="oe_stat_button" 
+                            icon="fa-product-hunt">
+                        <field name="product_count" widget="statinfo" string="Products"/>
+                    </button>
+                    <button name="action_view_invoices" 
+                            type="object" 
+                            class="oe_stat_button" 
+                            icon="fa-file-text-o">
+                        <field name="invoice_count" widget="statinfo" string="Invoices"/>
+                    </button>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- Maintenance Equipment List View -->
+        <record id="maintenance_equipment_tree_view_inherit" model="ir.ui.view">
+            <field name="name">maintenance.equipment.tree.inherit</field>
+            <field name="model">maintenance.equipment</field>
+            <field name="inherit_id" ref="maintenance.hr_equipment_view_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='name']" position="after">
+                    <field name="product_count"/>
+                    <field name="invoice_count"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
